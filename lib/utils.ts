@@ -43,7 +43,15 @@ export function getImageUrl(url: string) {
   if (/^https?:\/\//i.test(url)) return url
   // Fallback for legacy Supabase stored paths
   const base = process.env.NEXT_PUBLIC_SUPABASE_BUCKET_URL
-  return base ? `${base}/${url}` : url
+  if (base) return `${base}/${url}`
+
+  // If bucket URL env isn't set, infer public object URL from Supabase project URL.
+  // Note: Uploads in this repo use the "assets" bucket (see AuthService.uploadProfileImage).
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  if (supabaseUrl) return `${supabaseUrl.replace(/\/+$/, "")}/storage/v1/object/public/assets/${url.replace(/^\/+/, "")}`
+
+  // Last resort: return as-is (may 404 if it's a relative storage path).
+  return url
 }
 
 // Helper to map enum values to keys (e.g., 'en' => 'EN')

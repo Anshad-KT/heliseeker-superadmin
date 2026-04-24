@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { useParams } from "next/navigation"
 import { useMutation, useQuery } from "@tanstack/react-query"
-import { Check, ExternalLink, Loader2, Stethoscope, X } from "lucide-react"
+import { Check, Loader2, Stethoscope, X } from "lucide-react"
 import { useForm } from "react-hook-form"
 
 import { useAccess } from "@/app/admin/access/_hooks/use-access"
@@ -12,7 +12,7 @@ import { ContentLoading, ContentNotFound } from "@/components/common"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -27,6 +27,7 @@ import type { CenterApprovalStatus } from "../_types"
 
 const formatDate = (value?: string | null) => (value ? formatStringToMMMMddyy(value) : "—")
 const renderValue = (value?: string | number | null) => (value === null || value === undefined || value === "" ? "—" : value)
+const detailsValueClassName = "font-medium break-words whitespace-pre-wrap"
 
 const referralStatusStyles: Record<"pending" | "approved" | "rejected", string> = {
   pending: "border-blue-200 text-blue-700 bg-blue-50",
@@ -41,6 +42,14 @@ function getServiceStatusClass(value?: string | null) {
   if (status === "inactive") return "border-amber-200 text-amber-700 bg-amber-50"
   if (status === "disabled") return "border-amber-200 text-amber-700 bg-amber-50"
   if (status === "rejected") return "border-red-200 text-red-700 bg-red-50"
+  return "border-zinc-300 text-zinc-700 bg-zinc-100"
+}
+
+function getDepartmentStatusClass(value?: string | null) {
+  const status = (value ?? "").toLowerCase()
+  if (!status) return "border-zinc-300 text-zinc-700 bg-zinc-100"
+  if (status === "active") return "border-green-200 text-green-700 bg-green-50"
+  if (status === "inactive") return "border-amber-200 text-amber-700 bg-amber-50"
   return "border-zinc-300 text-zinc-700 bg-zinc-100"
 }
 
@@ -66,6 +75,11 @@ function getAttachmentPreviewKind(url: string, name?: string | null): Attachment
   if (ext === "pdf") return "pdf"
   if (["jpg", "jpeg", "png", "gif", "webp", "svg", "bmp", "ico", "avif"].includes(ext)) return "image"
   return "other"
+}
+
+function getAttachmentPreviewSrc(url: string, kind: AttachmentPreviewKind) {
+  if (kind !== "pdf") return url
+  return `${url}${url.includes("#") ? "&" : "#"}view=FitH`
 }
 
 type CenterSettingsFormValues = {
@@ -102,6 +116,8 @@ export default function CenterDetailPage() {
   const [selectedSpecialist, setSelectedSpecialist] = useState<any | null>(null)
   const [editBasicOpen, setEditBasicOpen] = useState(false)
   const [preview, setPreview] = useState<AttachmentPreview | null>(null)
+  const [rejectDialogOpen, setRejectDialogOpen] = useState(false)
+  const [rejectionDescription, setRejectionDescription] = useState("")
 
   const centerQuery = useQuery({
     ...trpc.centers.byId.queryOptions({ id: id ?? "" }),
@@ -117,12 +133,12 @@ export default function CenterDetailPage() {
   const isApproving = isUpdating && updatingStatus === "active"
   const isRejecting = isUpdating && updatingStatus === "rejected"
 
-  const handleUpdateStatus = async (status: CenterApprovalStatus) => {
-    if (!center?.id) return
+  const handleUpdateStatus = async (status: CenterApprovalStatus, approvalNote?: string) => {
+    if (!center?.id) return false
 
     setUpdatingStatus(status)
     try {
-      await updateStatusMutation.mutateAsync({ id: center.id, status })
+      await updateStatusMutation.mutateAsync({ id: center.id, status, approvalNote })
       await centerQuery.refetch()
       toast({
         title: "Status updated",
@@ -134,6 +150,7 @@ export default function CenterDetailPage() {
               : `Center status changed to ${status}.`,
         variant: "success",
       })
+      return true
     } catch (mutationError) {
       const message = mutationError instanceof Error ? mutationError.message : "Failed to update center status"
       toast({
@@ -141,8 +158,27 @@ export default function CenterDetailPage() {
         description: message,
         variant: "destructive",
       })
+      return false
     } finally {
       setUpdatingStatus(null)
+    }
+  }
+
+  const handleRejectCenter = async () => {
+    const note = rejectionDescription.trim()
+    if (!note) {
+      toast({
+        title: "Rejection description required",
+        description: "Please enter the reason for rejecting this center.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    const success = await handleUpdateStatus("rejected", note)
+    if (success) {
+      setRejectDialogOpen(false)
+      setRejectionDescription("")
     }
   }
 
@@ -230,6 +266,7 @@ export default function CenterDetailPage() {
   )
 
   const canEditCenter = access.isReady ? access.can("centers", "edit") : false
+  const isRejectedCenter = center?.approvalStatus === "rejected"
 
   return (
     <div className="space-y-6">
@@ -251,8 +288,8 @@ export default function CenterDetailPage() {
         <div className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                {center.centerName}
+              <CardTitle className="flex flex-wrap items-center gap-2 break-words">
+                <span className="break-words whitespace-pre-wrap">{center.centerName}</span>
                 <Badge className="capitalize" variant="outline">
                   {center.approvalStatus}
                 </Badge>
@@ -261,35 +298,37 @@ export default function CenterDetailPage() {
             <CardContent className="grid gap-4 text-sm md:grid-cols-2">
               <div className="space-y-1">
                 <p className="text-xs text-muted-foreground">Center Name</p>
-                <p className="font-medium">{center.centerName}</p>
+                <p className={detailsValueClassName}>{center.centerName}</p>
               </div>
               <div className="space-y-1">
                 <p className="text-xs text-muted-foreground">Contact Email</p>
-                <p className="font-medium">{center.contactEmail || "—"}</p>
+                <p className={detailsValueClassName}>{center.contactEmail || "—"}</p>
               </div>
               <div className="space-y-1">
                 <p className="text-xs text-muted-foreground">Contact Phone</p>
-                <p className="font-medium">{center.contactPhone || "—"}</p>
+                <p className={detailsValueClassName}>{center.contactPhone || "—"}</p>
               </div>
               <div className="space-y-1">
-                <p className="text-xs text-muted-foreground">Approval Status</p>
-                <p className="font-medium capitalize">{center.approvalStatus}</p>
+                <p className="text-xs text-muted-foreground">Status</p>
+                <p className={`${detailsValueClassName} capitalize`}>{center.approvalStatus}</p>
               </div>
-              <div className="space-y-1 md:col-span-2">
-                <p className="text-xs text-muted-foreground">Approval Note</p>
-                <p className="font-medium">{center.approvalNote || "—"}</p>
-              </div>
+              {isRejectedCenter ? (
+                <div className="space-y-1 md:col-span-2">
+                  <p className="text-xs text-muted-foreground">Rejection Note</p>
+                  <p className={detailsValueClassName}>{center.approvalNote || "—"}</p>
+                </div>
+              ) : null}
               <div className="space-y-1">
                 <p className="text-xs text-muted-foreground">Submitted On</p>
-                <p className="font-medium">{formatDate(center.createdAt)}</p>
+                <p className={detailsValueClassName}>{formatDate(center.createdAt)}</p>
               </div>
               <div className="space-y-1">
                 <p className="text-xs text-muted-foreground">Last Updated</p>
-                <p className="font-medium">{formatDate(center.updatedAt)}</p>
+                <p className={detailsValueClassName}>{formatDate(center.updatedAt)}</p>
               </div>
               <div className="space-y-1">
                 <p className="text-xs text-muted-foreground">Decision Date</p>
-                <p className="font-medium">{formatDate(center.decidedAt)}</p>
+                <p className={detailsValueClassName}>{formatDate(center.decidedAt)}</p>
               </div>
             </CardContent>
           </Card>
@@ -348,37 +387,37 @@ export default function CenterDetailPage() {
                   <CardContent className="grid gap-4 text-sm md:grid-cols-2">
                     <div className="space-y-1">
                       <p className="text-xs text-muted-foreground">Center Name</p>
-                      <p className="font-medium">{renderValue(onboarding.basicInfo?.centerName)}</p>
+                      <p className={detailsValueClassName}>{renderValue(onboarding.basicInfo?.centerName)}</p>
                     </div>
                     <div className="space-y-1">
                       <p className="text-xs text-muted-foreground">Short Description</p>
-                      <p className="font-medium">{renderValue(onboarding.basicInfo?.shortDescription)}</p>
+                      <p className={detailsValueClassName}>{renderValue(onboarding.basicInfo?.shortDescription)}</p>
                     </div>
                     <div className="space-y-1">
                       <p className="text-xs text-muted-foreground">Location</p>
-                      <p className="font-medium">{renderValue(onboarding.basicInfo?.location)}</p>
+                      <p className={detailsValueClassName}>{renderValue(onboarding.basicInfo?.location)}</p>
                     </div>
                     <div className="space-y-1">
                       <p className="text-xs text-muted-foreground">Commercial Registration #</p>
-                      <p className="font-medium">
+                      <p className={detailsValueClassName}>
                         {renderValue(onboarding.basicInfo?.commercialRegistrationNumber)}
                       </p>
                     </div>
                     <div className="space-y-1">
                       <p className="text-xs text-muted-foreground">Website</p>
-                      <p className="font-medium">{renderValue(onboarding.basicInfo?.website)}</p>
+                      <p className={detailsValueClassName}>{renderValue(onboarding.basicInfo?.website)}</p>
                     </div>
                     <div className="space-y-1">
                       <p className="text-xs text-muted-foreground">Official Email</p>
-                      <p className="font-medium">{renderValue(onboarding.basicInfo?.officialEmail)}</p>
+                      <p className={detailsValueClassName}>{renderValue(onboarding.basicInfo?.officialEmail)}</p>
                     </div>
                     <div className="space-y-1">
                       <p className="text-xs text-muted-foreground">Phone Number</p>
-                      <p className="font-medium">{renderValue(onboarding.basicInfo?.phoneNumber)}</p>
+                      <p className={detailsValueClassName}>{renderValue(onboarding.basicInfo?.phoneNumber)}</p>
                     </div>
                     <div className="space-y-1">
                       <p className="text-xs text-muted-foreground">Address</p>
-                      <p className="font-medium">{renderValue(onboarding.basicInfo?.address)}</p>
+                      <p className={detailsValueClassName}>{renderValue(onboarding.basicInfo?.address)}</p>
                     </div>
                   </CardContent>
                 </Card>
@@ -390,31 +429,31 @@ export default function CenterDetailPage() {
                   <CardContent className="grid gap-4 text-sm md:grid-cols-2">
                     <div className="space-y-1 md:col-span-2">
                       <p className="text-xs text-muted-foreground">Languages Supported</p>
-                      <p className="font-medium">{languages.length ? languages.join(", ") : "—"}</p>
+                      <p className={detailsValueClassName}>{languages.length ? languages.join(", ") : "—"}</p>
                     </div>
                     <div className="space-y-1">
                       <p className="text-xs text-muted-foreground">Therapist Count</p>
-                      <p className="font-medium">{renderValue(onboarding.operations?.therapistCount)}</p>
+                      <p className={detailsValueClassName}>{renderValue(onboarding.operations?.therapistCount)}</p>
                     </div>
                     <div className="space-y-1">
                       <p className="text-xs text-muted-foreground">Center Contact Number</p>
-                      <p className="font-medium">{renderValue(onboarding.operations?.centerContactNumber)}</p>
+                      <p className={detailsValueClassName}>{renderValue(onboarding.operations?.centerContactNumber)}</p>
                     </div>
                     <div className="space-y-1">
                       <p className="text-xs text-muted-foreground">Manager Name</p>
-                      <p className="font-medium">{renderValue(onboarding.operations?.managerName)}</p>
+                      <p className={detailsValueClassName}>{renderValue(onboarding.operations?.managerName)}</p>
                     </div>
                     <div className="space-y-1">
                       <p className="text-xs text-muted-foreground">Manager Email</p>
-                      <p className="font-medium">{renderValue(onboarding.operations?.managerEmail)}</p>
+                      <p className={detailsValueClassName}>{renderValue(onboarding.operations?.managerEmail)}</p>
                     </div>
                     <div className="space-y-1">
                       <p className="text-xs text-muted-foreground">Manager Phone</p>
-                      <p className="font-medium">{renderValue(onboarding.operations?.managerPhone)}</p>
+                      <p className={detailsValueClassName}>{renderValue(onboarding.operations?.managerPhone)}</p>
                     </div>
                     <div className="space-y-1">
                       <p className="text-xs text-muted-foreground">Manager Primary</p>
-                      <p className="font-medium">
+                      <p className={detailsValueClassName}>
                         {onboarding.operations?.managerPrimary === null ||
                         onboarding.operations?.managerPrimary === undefined
                           ? "—"
@@ -425,19 +464,19 @@ export default function CenterDetailPage() {
                     </div>
                     <div className="space-y-1">
                       <p className="text-xs text-muted-foreground">Marketing Rep Name</p>
-                      <p className="font-medium">{renderValue(onboarding.operations?.marketingRepName)}</p>
+                      <p className={detailsValueClassName}>{renderValue(onboarding.operations?.marketingRepName)}</p>
                     </div>
                     <div className="space-y-1">
                       <p className="text-xs text-muted-foreground">Marketing Rep Email</p>
-                      <p className="font-medium">{renderValue(onboarding.operations?.marketingRepEmail)}</p>
+                      <p className={detailsValueClassName}>{renderValue(onboarding.operations?.marketingRepEmail)}</p>
                     </div>
                     <div className="space-y-1">
                       <p className="text-xs text-muted-foreground">Marketing Rep Phone</p>
-                      <p className="font-medium">{renderValue(onboarding.operations?.marketingRepPhone)}</p>
+                      <p className={detailsValueClassName}>{renderValue(onboarding.operations?.marketingRepPhone)}</p>
                     </div>
                     <div className="space-y-1">
                       <p className="text-xs text-muted-foreground">Marketing Rep Primary</p>
-                      <p className="font-medium">
+                      <p className={detailsValueClassName}>
                         {onboarding.operations?.marketingRepPrimary === null ||
                         onboarding.operations?.marketingRepPrimary === undefined
                           ? "—"
@@ -463,7 +502,9 @@ export default function CenterDetailPage() {
                             backgroundColor: onboarding.customize?.primaryAccentColor || "#ffffff",
                           }}
                         />
-                        <p className="font-medium">{renderValue(onboarding.customize?.primaryAccentColor)}</p>
+                        <p className={detailsValueClassName}>
+                          {renderValue(onboarding.customize?.primaryAccentColor)}
+                        </p>
                       </div>
                     </div>
                     <div className="space-y-1 md:col-span-2">
@@ -475,7 +516,7 @@ export default function CenterDetailPage() {
                           className="h-20 w-20 rounded-full border object-cover"
                         />
                       ) : (
-                        <p className="font-medium">—</p>
+                        <p className={detailsValueClassName}>—</p>
                       )}
                     </div>
                   </CardContent>
@@ -498,7 +539,7 @@ export default function CenterDetailPage() {
                       <Button
                         type="button"
                         variant="destructive"
-                        onClick={() => handleUpdateStatus("rejected")}
+                        onClick={() => setRejectDialogOpen(true)}
                         disabled={isUpdating}
                       >
                         {isRejecting ? (
@@ -521,13 +562,21 @@ export default function CenterDetailPage() {
                   <CardContent className="space-y-3 text-sm">
                     {onboarding.departments?.length ? (
                       onboarding.departments.map((department) => (
-                        <div key={department.id} className="flex items-start justify-between gap-4 rounded-md border p-3">
-                          <div>
-                            <p className="font-medium">{department.name}</p>
-                            <p className="text-xs text-muted-foreground">{department.description || "—"}</p>
+                        <div
+                          key={department.id}
+                          className="flex items-start justify-between gap-4 rounded-md border p-3"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <p className={detailsValueClassName}>{renderValue(department.name)}</p>
+                            <p className="text-xs text-muted-foreground break-words whitespace-pre-wrap">
+                              {renderValue(department.description)}
+                            </p>
                           </div>
-                          <Badge variant="outline" className="capitalize">
-                            {department.status || "—"}
+                          <Badge
+                            variant="outline"
+                            className={`capitalize ${getDepartmentStatusClass(department.status)}`}
+                          >
+                            {renderValue(department.status)}
                           </Badge>
                         </div>
                       ))
@@ -545,35 +594,75 @@ export default function CenterDetailPage() {
                   </CardHeader>
                   <CardContent className="space-y-3 text-sm">
                     {onboarding.services?.length ? (
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Service Name</TableHead>
-                            <TableHead>Department</TableHead>
-                            <TableHead>Description</TableHead>
-                            <TableHead>Status</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
+                      <>
+                        <div className="space-y-3 md:hidden">
                           {onboarding.services.map((service) => (
-                            <TableRow key={service.id}>
-                              <TableCell className="font-medium break-words">{renderValue(service.serviceName)}</TableCell>
-                              <TableCell className="break-words">{renderValue(service.departmentName)}</TableCell>
-                              <TableCell className="break-words text-muted-foreground">
-                                {renderValue(service.description)}
-                              </TableCell>
-                              <TableCell>
+                            <div key={service.id} className="rounded-md border p-3">
+                              <div className="flex items-start justify-between gap-3">
+                                <p className="min-w-0 flex-1 font-medium break-words whitespace-pre-wrap">
+                                  {renderValue(service.serviceName)}
+                                </p>
                                 <Badge
                                   variant="outline"
-                                  className={`capitalize ${getServiceStatusClass(service.status)}`}
+                                  className={`shrink-0 capitalize ${getServiceStatusClass(service.status)}`}
                                 >
                                   {renderValue(service.status)}
                                 </Badge>
-                              </TableCell>
-                            </TableRow>
+                              </div>
+                              <div className="mt-3 space-y-2 text-xs">
+                                <div>
+                                  <p className="text-muted-foreground">Department</p>
+                                  <p className="break-words whitespace-pre-wrap">
+                                    {renderValue(service.departmentName)}
+                                  </p>
+                                </div>
+                                <div>
+                                  <p className="text-muted-foreground">Description</p>
+                                  <p className="break-words whitespace-pre-wrap text-muted-foreground">
+                                    {renderValue(service.description)}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
                           ))}
-                        </TableBody>
-                      </Table>
+                        </div>
+
+                        <div className="hidden md:block">
+                          <Table className="table-fixed">
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead className="w-[22%]">Service Name</TableHead>
+                                <TableHead className="w-[18%]">Department</TableHead>
+                                <TableHead className="w-[45%]">Description</TableHead>
+                                <TableHead className="w-[15%]">Status</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {onboarding.services.map((service) => (
+                                <TableRow key={service.id}>
+                                  <TableCell className="font-medium break-words whitespace-pre-wrap">
+                                    {renderValue(service.serviceName)}
+                                  </TableCell>
+                                  <TableCell className="break-words whitespace-pre-wrap">
+                                    {renderValue(service.departmentName)}
+                                  </TableCell>
+                                  <TableCell className="break-words whitespace-pre-wrap text-muted-foreground">
+                                    {renderValue(service.description)}
+                                  </TableCell>
+                                  <TableCell>
+                                    <Badge
+                                      variant="outline"
+                                      className={`capitalize ${getServiceStatusClass(service.status)}`}
+                                    >
+                                      {renderValue(service.status)}
+                                    </Badge>
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      </>
                     ) : (
                       <p className="text-sm text-muted-foreground">No services provided.</p>
                     )}
@@ -670,9 +759,9 @@ export default function CenterDetailPage() {
                       clientRequests.map((request: any) => (
                         <div key={request.id} className="space-y-2 rounded-md border p-3">
                           <div className="flex flex-wrap items-start justify-between gap-3">
-                            <div className="space-y-1">
-                              <p className="font-medium">{request.customerName || "—"}</p>
-                              <p className="text-xs text-muted-foreground">
+                            <div className="min-w-0 flex-1 space-y-1">
+                              <p className={detailsValueClassName}>{request.customerName || "—"}</p>
+                              <p className="text-xs text-muted-foreground break-words whitespace-pre-wrap">
                                 {request.customerEmail || "—"}
                                 {request.customerPhone ? ` • ${request.customerPhone}` : ""}
                               </p>
@@ -686,27 +775,29 @@ export default function CenterDetailPage() {
                           </div>
 
                           <div className="grid gap-3 md:grid-cols-2">
-                            <div className="space-y-1">
-                              <p className="text-xs text-muted-foreground">Referral Code</p>
-                              <p className="font-medium">{request.referralCode || "—"}</p>
-                            </div>
+                            {request.status === "approved" ? (
+                              <div className="space-y-1">
+                                <p className="text-xs text-muted-foreground">Referral Code</p>
+                                <p className={detailsValueClassName}>{request.referralCode || "—"}</p>
+                              </div>
+                            ) : null}
                             <div className="space-y-1">
                               <p className="text-xs text-muted-foreground">Created</p>
-                              <p className="font-medium">{formatDate(request.createdAt)}</p>
+                              <p className={detailsValueClassName}>{formatDate(request.createdAt)}</p>
                             </div>
                             <div className="space-y-1 md:col-span-2">
                               <p className="text-xs text-muted-foreground">Note</p>
-                              <p className="font-medium">{request.note || "—"}</p>
+                              <p className={detailsValueClassName}>{request.note || "—"}</p>
                             </div>
                             {request.status === "rejected" ? (
                               <div className="space-y-1 md:col-span-2">
                                 <p className="text-xs text-muted-foreground">Rejection Note</p>
-                                <p className="font-medium">{request.rejectionNote || "—"}</p>
+                                <p className={detailsValueClassName}>{request.rejectionNote || "—"}</p>
                               </div>
                             ) : null}
                             <div className="space-y-1">
                               <p className="text-xs text-muted-foreground">Decision Date</p>
-                              <p className="font-medium">{formatDate(request.decidedAt)}</p>
+                              <p className={detailsValueClassName}>{formatDate(request.decidedAt)}</p>
                             </div>
                           </div>
                         </div>
@@ -897,6 +988,58 @@ export default function CenterDetailPage() {
         </DialogContent>
       </Dialog>
 
+      <Dialog
+        open={rejectDialogOpen}
+        onOpenChange={(open) => {
+          setRejectDialogOpen(open)
+          if (!open && !isRejecting) {
+            setRejectionDescription("")
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reject Center</DialogTitle>
+            <DialogDescription>
+              Add a rejection description. This will be saved and sent in the rejection email.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <p className="text-sm font-medium">Rejection description</p>
+            <Textarea
+              value={rejectionDescription}
+              onChange={(event) => setRejectionDescription(event.target.value)}
+              placeholder="Explain why this center is being rejected."
+              disabled={isRejecting}
+              rows={5}
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setRejectDialogOpen(false)}
+              disabled={isRejecting}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={handleRejectCenter}
+              disabled={isRejecting || !rejectionDescription.trim()}
+            >
+              {isRejecting ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <X className="mr-2 h-4 w-4" />
+              )}
+              {isRejecting ? "Rejecting..." : "Reject Center"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={Boolean(selectedSpecialist)} onOpenChange={(open) => (!open ? setSelectedSpecialist(null) : undefined)}>
         <DialogContent className="max-w-5xl w-[95vw] max-h-[85vh] overflow-y-auto">
           <DialogHeader>
@@ -908,19 +1051,19 @@ export default function CenterDetailPage() {
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-1">
                   <p className="text-xs text-muted-foreground">Name</p>
-                  <p className="font-medium">{selectedSpecialist.name || "—"}</p>
+                  <p className={detailsValueClassName}>{selectedSpecialist.name || "—"}</p>
                 </div>
                 <div className="space-y-1">
                   <p className="text-xs text-muted-foreground">Designation</p>
-                  <p className="font-medium">{selectedSpecialist.designation || "—"}</p>
+                  <p className={detailsValueClassName}>{selectedSpecialist.designation || "—"}</p>
                 </div>
                 <div className="space-y-1">
                   <p className="text-xs text-muted-foreground">Department</p>
-                  <p className="font-medium">{selectedSpecialist.department || "—"}</p>
+                  <p className={detailsValueClassName}>{selectedSpecialist.department || "—"}</p>
                 </div>
                 <div className="space-y-1">
                   <p className="text-xs text-muted-foreground">Years of Experience</p>
-                  <p className="font-medium">
+                  <p className={detailsValueClassName}>
                     {selectedSpecialist.yearsOfExperience !== null && selectedSpecialist.yearsOfExperience !== undefined
                       ? selectedSpecialist.yearsOfExperience
                       : "—"}
@@ -935,7 +1078,7 @@ export default function CenterDetailPage() {
                     <div className="space-y-3">
                       {selectedSpecialist.education.map((education: any, educationIndex: number) => (
                         <div key={educationIndex} className="rounded-xl border bg-muted/20 p-4">
-                          <p className="font-medium">
+                          <p className={detailsValueClassName}>
                             {education.degree || "—"}{education.university ? ` • ${education.university}` : ""}
                           </p>
                           <p className="mt-1 text-xs text-muted-foreground">
@@ -976,7 +1119,7 @@ export default function CenterDetailPage() {
                     <div className="space-y-3">
                       {selectedSpecialist.experience.map((experience: any, experienceIndex: number) => (
                         <div key={experienceIndex} className="rounded-xl border bg-muted/20 p-4">
-                          <p className="font-medium">
+                          <p className={detailsValueClassName}>
                             {experience.title || "—"}{experience.organization ? ` • ${experience.organization}` : ""}
                           </p>
                           <p className="mt-1 text-xs text-muted-foreground">
@@ -1017,27 +1160,17 @@ export default function CenterDetailPage() {
       </Dialog>
 
       <Dialog open={Boolean(preview)} onOpenChange={(open) => (!open ? setPreview(null) : undefined)}>
-        <DialogContent className="max-w-5xl w-[95vw] h-[85vh] p-0">
+        <DialogContent className="h-[92vh] w-[100vw] max-w-[100vw] rounded-none border-0 p-0 sm:h-[88vh] sm:w-[95vw] sm:max-w-5xl sm:rounded-2xl sm:border">
           <div className="flex h-full flex-col">
-            <DialogHeader className="border-b px-4 py-3">
-              <div className="flex items-center justify-between gap-3">
-                <DialogTitle className="truncate">{preview?.name || "Attachment Preview"}</DialogTitle>
-                {preview?.url ? (
-                  <a
-                    href={preview.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-2 text-sm text-blue-600 hover:underline"
-                  >
-                    Open in new tab <ExternalLink className="h-4 w-4" />
-                  </a>
-                ) : null}
-              </div>
+            <DialogHeader className="border-b bg-background px-4 py-3 pr-12 sm:px-5">
+              <DialogTitle className="line-clamp-2 text-left text-base leading-6 sm:text-xl">
+                {preview?.name || "Attachment Preview"}
+              </DialogTitle>
             </DialogHeader>
 
-            <div className="flex-1 overflow-hidden">
+            <div className="flex-1 overflow-hidden bg-slate-950/5">
               {preview?.kind === "image" ? (
-                <div className="flex h-full w-full items-center justify-center bg-muted/20 p-4">
+                <div className="flex h-full w-full items-center justify-center bg-muted/20 p-3 sm:p-4">
                   <img
                     src={preview.url}
                     alt={preview.name || "Attachment"}
@@ -1049,9 +1182,15 @@ export default function CenterDetailPage() {
                   />
                 </div>
               ) : preview?.kind === "pdf" ? (
-                <iframe title={preview?.name || "PDF Preview"} src={preview.url} className="h-full w-full" />
+                <div className="h-full w-full p-0 sm:p-2">
+                  <iframe
+                    title={preview?.name || "PDF Preview"}
+                    src={getAttachmentPreviewSrc(preview.url, preview.kind)}
+                    className="h-full w-full bg-white sm:rounded-xl sm:border"
+                  />
+                </div>
               ) : (
-                <div className="p-4 text-sm text-muted-foreground">Preview not available. Use “Open in new tab”.</div>
+                <div className="p-4 text-sm text-muted-foreground">Preview not available for this attachment.</div>
               )}
             </div>
           </div>

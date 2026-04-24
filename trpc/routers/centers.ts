@@ -107,7 +107,15 @@ const requestOnboardingSchema = z.object({
 const updateCenterStatusSchema = z.object({
   id: z.string().uuid(),
   status: centerStatusSchema,
-  approvalNote: z.string().trim().min(1).optional(),
+  approvalNote: z.string().trim().optional(),
+}).superRefine((value, ctx) => {
+  if (value.status === "rejected" && !value.approvalNote?.trim()) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["approvalNote"],
+      message: "Rejection description is required.",
+    })
+  }
 })
 
 const updateCenterSchema = z.object({
@@ -584,9 +592,7 @@ export const centersRouter = createTRPCRouter({
       updateValues.decidedAt = null
     }
 
-    if (input.approvalNote !== undefined) {
-      updateValues.approvalNote = input.approvalNote
-    }
+    updateValues.approvalNote = input.status === "rejected" ? input.approvalNote?.trim() || null : null
 
     const [updated] = await db
       .update(centerProfiles)

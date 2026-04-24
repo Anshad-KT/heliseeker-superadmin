@@ -79,6 +79,7 @@ export interface FlatPage {
 export interface SeoSettings {
   metaTitle: string
   metaDescription: string
+  ogImageUrl: string
 }
 
 export interface TagItem {

@@ -46,7 +46,10 @@ export async function POST(request: NextRequest) {
 
     const supabase = getServiceRoleSupabase()
 
-    if (role !== "super_admin") {
+    const normalizedRole = role.toLowerCase().replace(/[\s-]+/g, "_")
+    if (normalizedRole === "super_admin") {
+      role = "super_admin"
+    } else {
       const { data: roleRow, error: roleError } = await supabase
         .from("roles")
         .select("name")
@@ -70,7 +73,11 @@ export async function POST(request: NextRequest) {
     const smtpUser = process.env.SMTP_USER
     const smtpPass = process.env.SMTP_PASS
     const smtpFrom = process.env.SMTP_FROM
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || `${request.nextUrl.origin}`
+    const superadminBaseUrl =
+      process.env.NEXT_PUBLIC_SUPERADMIN_URL ||
+      process.env.SUPERADMIN_APP_URL ||
+      "https://heli-seeker-superadmin.vercel.app"
+    const appUrl = superadminBaseUrl || process.env.NEXT_PUBLIC_APP_URL || `${request.nextUrl.origin}`
 
     console.log("SMTP Config:", { smtpHost, smtpPort, smtpUser, smtpPass: !!smtpPass, smtpFrom });
     

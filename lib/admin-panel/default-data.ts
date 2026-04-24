@@ -74,8 +74,9 @@ export const defaultAdminDb: AdminPanelDb = {
     { id: "fp_1", title: "About Us", slug: "about-us", description: "<p>About page</p>", enabled: true, updatedAt: now },
   ],
   seo: {
-    metaTitle: "Burjcon Admin",
+    metaTitle: "Heliseeker Superadmin",
     metaDescription: "Admin SEO defaults",
+    ogImageUrl: "",
   },
   tags: [
     {

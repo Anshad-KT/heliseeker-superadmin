@@ -5,7 +5,7 @@ import { Moon, Sun, LogOut, UserCircle } from "lucide-react"
 import { useTheme } from "next-themes"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { Avatar, AvatarImage } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -111,6 +111,7 @@ export function Header({ onOpenSearch, onOpenMobileSidebar, mobileSidebarOpen }:
                 ) : (
                   <UserCircle className="mx-auto my-auto" />
                 )}
+                <AvatarFallback>{(user?.name || user?.email || "A")?.[0]?.toUpperCase()}</AvatarFallback>
               </Avatar>
             </Button>
           </DropdownMenuTrigger>

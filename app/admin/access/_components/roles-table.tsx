@@ -5,6 +5,14 @@ import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Role } from "@/lib/admin-panel/types"
 
+const moduleLabelMap: Record<string, string> = {
+  leads: "enquiries",
+}
+
+function getModuleLabel(moduleKey: string) {
+  return moduleLabelMap[moduleKey] ?? moduleKey
+}
+
 interface RolesTableProps {
   roles: Role[]
   onEdit?: (role: Role) => void
@@ -18,19 +26,21 @@ export function RolesTable({ roles, onEdit, onDelete, canEdit = true, canDelete 
     <Table>
       <TableHeader>
         <TableRow>
+          <TableHead className="w-16">Sl No</TableHead>
           <TableHead>Role</TableHead>
           <TableHead>Module Permissions</TableHead>
           {(onEdit || onDelete) && <TableHead className="text-right">Actions</TableHead>}
         </TableRow>
       </TableHeader>
       <TableBody>
-        {roles.map((role) => (
+        {roles.map((role, index) => (
           <TableRow key={role.id}>
+            <TableCell className="text-sm text-muted-foreground">{index + 1}</TableCell>
             <TableCell className="font-medium">{role.name}</TableCell>
             <TableCell className="space-x-1">
               {role.permissions.map((permission) => (
                 <Badge key={`${role.id}-${permission.module}`} variant="outline">
-                  {permission.module}: {permission.view ? "V" : "-"}/{permission.create ? "C" : "-"}/{permission.edit ? "E" : "-"}
+                  {getModuleLabel(permission.module)}: {permission.view ? "V" : "-"}/{permission.create ? "C" : "-"}/{permission.edit ? "E" : "-"}/{permission.delete ? "D" : "-"}
                 </Badge>
               ))}
             </TableCell>

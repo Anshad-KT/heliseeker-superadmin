@@ -1,29 +1,109 @@
+import { existsSync } from "node:fs"
 import { mkdir, readFile, writeFile } from "node:fs/promises"
 import path from "node:path"
 
 import { defaultAdminDb } from "./default-data"
 import { AdminPanelDb } from "./types"
 
-const dataDir = path.join(process.cwd(), "data")
-const dataFile = path.join(dataDir, "admin-panel.json")
+let resolvedDataFile: string | null = null
+
+function getDataFile(): string {
+  if (resolvedDataFile) return resolvedDataFile
+
+  const configured = process.env.ADMIN_PANEL_DATA_FILE?.trim()
+  if (configured) {
+    resolvedDataFile = configured
+    return resolvedDataFile
+  }
+
+  const candidates = [
+    path.join(process.cwd(), "data", "admin-panel.json"),
+    // Monorepo fallback (when the Vercel project root is the repo root).
+    path.join(process.cwd(), "heli-seeker-superadmin", "data", "admin-panel.json"),
+  ]
+
+  resolvedDataFile = candidates.find((candidate) => existsSync(candidate)) ?? candidates[0]
+  return resolvedDataFile
+}
 
 async function ensureDataFile() {
-  await mkdir(dataDir, { recursive: true })
+  const dataFile = getDataFile()
+  const dataDir = path.dirname(dataFile)
+
+  try {
+    await mkdir(dataDir, { recursive: true })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    throw new Error(
+      `Admin panel storage is not writable. Failed to create data directory at "${dataDir}". ` +
+        `Set ADMIN_PANEL_DATA_FILE to a writable, persistent location. Original error: ${message}`,
+    )
+  }
+
+  const legacyDataFile = path.join(process.cwd(), "data", "admin-panel.json")
   try {
     await readFile(dataFile, "utf8")
   } catch {
-    await writeFile(dataFile, JSON.stringify(defaultAdminDb, null, 2), "utf8")
+    if (legacyDataFile !== dataFile) {
+      try {
+        const legacyRaw = await readFile(legacyDataFile, "utf8")
+        try {
+          await writeFile(dataFile, legacyRaw, "utf8")
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error)
+          throw new Error(
+            `Admin panel storage is not writable. Failed to copy legacy data into "${dataFile}". ` +
+              `Set ADMIN_PANEL_DATA_FILE to a writable, persistent location. Original error: ${message}`,
+          )
+        }
+        return
+      } catch {
+        // ignore legacy fallback
+      }
+    }
+    try {
+      await writeFile(dataFile, JSON.stringify(defaultAdminDb, null, 2), "utf8")
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      throw new Error(
+        `Admin panel storage is not writable. Failed to initialize "${dataFile}". ` +
+          `Set ADMIN_PANEL_DATA_FILE to a writable, persistent location. Original error: ${message}`,
+      )
+    }
   }
 }
 
 export async function readDb(): Promise<AdminPanelDb> {
   await ensureDataFile()
+  const dataFile = getDataFile()
   const raw = await readFile(dataFile, "utf8")
-  return JSON.parse(raw) as AdminPanelDb
+  const parsed = (() => {
+    try {
+      return JSON.parse(raw) as Partial<AdminPanelDb>
+    } catch {
+      return {}
+    }
+  })()
+  return {
+    ...defaultAdminDb,
+    ...parsed,
+    seo: {
+      ...defaultAdminDb.seo,
+      ...(parsed.seo ?? {}),
+    },
+    tags: parsed.tags ?? defaultAdminDb.tags,
+    centers: parsed.centers ?? defaultAdminDb.centers,
+    patients: parsed.patients ?? defaultAdminDb.patients,
+    searchFilters: parsed.searchFilters ?? defaultAdminDb.searchFilters,
+    roles: parsed.roles ?? defaultAdminDb.roles,
+    staffUsers: parsed.staffUsers ?? defaultAdminDb.staffUsers,
+    flatPages: parsed.flatPages ?? defaultAdminDb.flatPages,
+  }
 }
 
 export async function writeDb(next: AdminPanelDb): Promise<void> {
   await ensureDataFile()
+  const dataFile = getDataFile()
   await writeFile(dataFile, JSON.stringify(next, null, 2), "utf8")
 }
 

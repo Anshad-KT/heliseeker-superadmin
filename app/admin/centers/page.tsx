@@ -67,14 +67,15 @@ export default function CentersPage() {
         </p>
       </div>
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Center Onboarding</CardTitle>
-          <div className="flex items-center gap-2">
+      <Card className="overflow-hidden">
+        <CardHeader className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <CardTitle className="text-lg leading-tight sm:text-xl">Center Onboarding</CardTitle>
+          <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:items-center">
             <Button
               type="button"
               size="sm"
               variant={statusFilter === "pending" ? "default" : "outline"}
+              className="w-full whitespace-nowrap sm:w-auto"
               onClick={() => setStatusFilter("pending")}
             >
               Pending ({pendingCenters.length})
@@ -83,6 +84,7 @@ export default function CentersPage() {
               type="button"
               size="sm"
               variant={statusFilter === "completed" ? "default" : "outline"}
+              className="w-full whitespace-nowrap sm:w-auto"
               onClick={() => setStatusFilter("completed")}
             >
               Completed ({completedCenters.length})
@@ -113,14 +115,16 @@ export default function CentersPage() {
                   {statusFilter === "pending" ? "No pending centers." : "No completed centers."}
                 </p>
               ) : (
-                <CentersTable
-                  centers={visibleCenters}
-                  onUpdateStatus={handleUpdateStatus}
-                  showApprovalActions={false}
-                  showStatusSelect={statusFilter === "completed"}
-                  updatingCenterId={updatingCenterId}
-                  updatingStatus={updatingStatus}
-                />
+                <div className="overflow-x-auto">
+                  <CentersTable
+                    centers={visibleCenters}
+                    onUpdateStatus={handleUpdateStatus}
+                    showApprovalActions={false}
+                    showStatusSelect={statusFilter === "completed"}
+                    updatingCenterId={updatingCenterId}
+                    updatingStatus={updatingStatus}
+                  />
+                </div>
               )}
             </div>
           )}

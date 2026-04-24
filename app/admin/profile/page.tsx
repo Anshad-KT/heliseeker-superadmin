@@ -12,11 +12,24 @@ import { AuthService } from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
 import { useProfile } from "@/app/contexts/profile.context";
 import { PROFILE_STRINGS } from "@/lib/constants";
+import { getImageUrl } from "@/lib/utils";
 import { highlightAndScroll, highlightCharacters, getId } from "@/lib/utils-tsx";
 import { profileSearchIndex } from "@/public/search-index";
 import { IProfile, PROFILE_SEARCH_KEYS } from "@/lib/types";
 
 const PROFILE_SEARCH_INDEX = profileSearchIndex;
+const NAME_LETTERS_AND_SPACES_REGEX = /^[\p{L} ]+$/u;
+
+function sanitizeLettersAndSpacesForInput(value: string) {
+    return value.replace(/[^\p{L}\s]+/gu, "");
+}
+
+function sanitizeLettersAndSpaces(value: string) {
+    return value
+        .replace(/[^\p{L}\s]+/gu, "")
+        .replace(/\s+/g, " ")
+        .trim();
+}
 
 export default function ProfilePage() {
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -45,8 +58,9 @@ export default function ProfilePage() {
                 const service = new AuthService();
                 const profileData = await service.getProfile();
                 if (!mounted) return;
-                lastProfile.current = { name: profileData.name || "", email: profileData.email || "", img: profileData.img || "", role: profileData.role || "" };
-                setProfile(profileData);
+                const sanitizedName = sanitizeLettersAndSpaces(profileData.name || "");
+                lastProfile.current = { name: sanitizedName, email: profileData.email || "", img: profileData.img || "", role: profileData.role || "" };
+                setProfile({ ...profileData, name: sanitizedName });
                 form.reset(lastProfile.current);
                 setPreview(profileData.img || null);
             } catch (err: any) {
@@ -58,7 +72,8 @@ export default function ProfilePage() {
         };
         // If context already has profile, use it, else fetch
         if (profile && profile.email) {
-            lastProfile.current = { name: profile.name || "", email: profile.email || "", img: profile.img || "", role: profile.role || "" };
+            const sanitizedName = sanitizeLettersAndSpaces(profile.name || "");
+            lastProfile.current = { name: sanitizedName, email: profile.email || "", img: profile.img || "", role: profile.role || "" };
             form.reset(lastProfile.current);
             setPreview(profile.img || null);
             setLoading(false);
@@ -95,6 +110,16 @@ export default function ProfilePage() {
     };
 
     const onSubmit = async (values: { name: string; email: string; img: string; role: string }) => {
+        const cleanedName = sanitizeLettersAndSpaces(values.name);
+        if (cleanedName.length < 2) {
+            form.setError("name", { type: "manual", message: "Name must be at least 2 letters." });
+            return;
+        }
+        if (!NAME_LETTERS_AND_SPACES_REGEX.test(cleanedName)) {
+            form.setError("name", { type: "manual", message: "Only letters and spaces are allowed." });
+            return;
+        }
+
         if (!values.img || values.img === "") {
             toast({ title: PROFILE_STRINGS.toast.profileImageError.title, description: PROFILE_STRINGS.toast.profileImageError.description, variant: "destructive" });
             return;
@@ -106,9 +131,9 @@ export default function ProfilePage() {
             if (imageFile) {
                 imgUrl = await new AuthService().uploadProfileImage(imageFile);
             }
-            await new AuthService().updateProfile({ name: values.name, img: imgUrl });
-            lastProfile.current = { ...values, img: imgUrl };
-            setProfile({ ...values, img: imgUrl });
+            await new AuthService().updateProfile({ name: cleanedName, img: imgUrl });
+            lastProfile.current = { ...values, name: cleanedName, img: imgUrl };
+            setProfile({ ...values, name: cleanedName, img: imgUrl });
             form.reset(lastProfile.current);
             setIsImageChange(false);
             setPreview(imgUrl);
@@ -155,7 +180,7 @@ export default function ProfilePage() {
                                     {preview && (
                                         <Avatar className="mt-2 h-16 w-16">
                                             <AvatarImage
-                                                src={isImageChange ? preview : `${process.env.NEXT_PUBLIC_SUPABASE_BUCKET_URL}/${preview}`}
+                                                src={/^blob:|^data:|^https?:\/\//i.test(preview) ? preview : getImageUrl(preview)}
                                                 alt={PROFILE_STRINGS.table.labels.profileImageAlt}
                                             />
                                             <AvatarFallback>{form.getValues("name")?.[0] || "A"}</AvatarFallback>
@@ -172,7 +197,14 @@ export default function ProfilePage() {
                                 {highlightKey === PROFILE_SEARCH_KEYS.tableLabelsName && highlightQuery ? highlightCharacters(PROFILE_STRINGS.table.labels.name, highlightQuery) : PROFILE_STRINGS.table.labels.name}
                             </FormLabel>
                             <FormControl>
-                                <Input id={getId(PROFILE_SEARCH_KEYS.tableLabelsName, PROFILE_SEARCH_INDEX)} {...field} placeholder={PROFILE_STRINGS.table.placeholders.name} disabled={loading} />
+                                <Input
+                                    id={getId(PROFILE_SEARCH_KEYS.tableLabelsName, PROFILE_SEARCH_INDEX)}
+                                    {...field}
+                                    value={field.value || ""}
+                                    onChange={(event) => field.onChange(sanitizeLettersAndSpacesForInput(event.target.value))}
+                                    placeholder={PROFILE_STRINGS.table.placeholders.name}
+                                    disabled={loading}
+                                />
                             </FormControl>
                             <FormMessage />
                         </FormItem>

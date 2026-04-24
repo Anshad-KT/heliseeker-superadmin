@@ -1,8 +1,9 @@
 "use client"
 
 import { zodResolver } from "@hookform/resolvers/zod"
-import { useEffect, useMemo, useState } from "react"
+import { useMemo, useState } from "react"
 import { useForm } from "react-hook-form"
+import { useRouter } from "next/navigation"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -12,45 +13,41 @@ import { Input } from "@/components/ui/input"
 import { SearchInput } from "@/components/ui/search-input"
 
 import { RolesTable } from "./_components/roles-table"
-import { useCreateRole, useDeleteRole, useRoles, useUpdateRole } from "./_hooks/use-roles"
+import { useCreateRole, useDeleteRole, useRoles } from "./_hooks/use-roles"
 import { createRoleSchema, CreateRoleFormValues } from "./_schemas/role.schema"
 import { useRequirePermission } from "@/app/admin/access/_hooks/use-access"
-import { Role } from "@/lib/admin-panel/types"
 
 const MODULES = [
   { key: "centers", label: "Centers" },
   { key: "leads", label: "Enquiries" },
+  { key: "seo", label: "SEO" },
   { key: "department", label: "Department" },
   { key: "service", label: "Service" },
   { key: "specialization", label: "Specialization" },
   { key: "ageGroup", label: "Age Group" },
   { key: "flatPages", label: "Flat Pages" },
-  { key: "customers", label: "Customers" },
+  { key: "customers", label: "Website Users" },
   { key: "userManagement", label: "User Management" },
   { key: "userRoles", label: "User Roles" },
 ]
 
 export default function AccessManagementPage() {
+  const router = useRouter()
   const access = useRequirePermission("userRoles", "view")
   const { data, isLoading } = useRoles()
   const createMutation = useCreateRole()
-  const updateMutation = useUpdateRole()
   const deleteMutation = useDeleteRole()
-  const [editingRole, setEditingRole] = useState<Role | null>(null)
   const [search, setSearch] = useState("")
 
   const buildPermissions = useMemo(
-    () => (role?: Role | null) =>
-      MODULES.map((module) => {
-        const current = role?.permissions.find((permission) => permission.module === module.key)
-        return {
-          module: module.key,
-          view: current?.view ?? false,
-          create: current?.create ?? false,
-          edit: current?.edit ?? false,
-          delete: current?.delete ?? false,
-        }
-      }),
+    () => () =>
+      MODULES.map((module) => ({
+        module: module.key,
+        view: false,
+        create: false,
+        edit: false,
+        delete: false,
+      })),
     [],
   )
 
@@ -58,17 +55,9 @@ export default function AccessManagementPage() {
     resolver: zodResolver(createRoleSchema),
     defaultValues: {
       name: "",
-      permissions: buildPermissions(null),
+      permissions: buildPermissions(),
     },
   })
-
-  useEffect(() => {
-    if (editingRole) {
-      form.reset({ name: editingRole.name, permissions: buildPermissions(editingRole) })
-    } else {
-      form.reset({ name: "", permissions: buildPermissions(null) })
-    }
-  }, [editingRole, form, buildPermissions])
 
   const roles = data?.data || []
   const filteredRoles = useMemo(() => {
@@ -94,7 +83,7 @@ export default function AccessManagementPage() {
       {access.can("userRoles", "create") && (
         <Card>
         <CardHeader>
-          <CardTitle>{editingRole ? "Edit Role" : "Create Role"}</CardTitle>
+          <CardTitle>Create Role</CardTitle>
         </CardHeader>
         <CardContent>
           <Form {...form}>
@@ -104,20 +93,11 @@ export default function AccessManagementPage() {
                 const permissions = values.permissions.filter(
                   (permission) => permission.view || permission.create || permission.edit || permission.delete,
                 )
-                if (editingRole) {
-                  await updateMutation.mutateAsync({
-                    id: editingRole.id,
-                    name: values.name,
-                    permissions,
-                  })
-                  setEditingRole(null)
-                } else {
-                  await createMutation.mutateAsync({
-                    name: values.name,
-                    permissions,
-                  })
-                }
-                form.reset({ name: "", permissions: buildPermissions(null) })
+                await createMutation.mutateAsync({
+                  name: values.name,
+                  permissions,
+                })
+                form.reset({ name: "", permissions: buildPermissions() })
               })}
             >
               <div className="grid gap-3 md:grid-cols-2">
@@ -178,7 +158,7 @@ export default function AccessManagementPage() {
                                 <span className="font-medium text-foreground">{module.label}</span>
                               </div>
                               <div className="text-center text-xs font-semibold uppercase tracking-wide">View</div>
-                              <div className="text-center text-xs font-semibold uppercase tracking-wide">Add</div>
+                              <div className="text-center text-xs font-semibold uppercase tracking-wide">Create</div>
                               <div className="text-center text-xs font-semibold uppercase tracking-wide">Edit</div>
                               <div className="text-center text-xs font-semibold uppercase tracking-wide">Delete</div>
                             </div>
@@ -217,20 +197,10 @@ export default function AccessManagementPage() {
               <div className="flex flex-wrap gap-2">
                 <Button
                   type="submit"
-                  disabled={createMutation.isPending || updateMutation.isPending}
+                  disabled={createMutation.isPending}
                 >
-                  {editingRole ? "Update Role" : "Create Role"}
+                  Create Role
                 </Button>
-                {editingRole && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setEditingRole(null)}
-                    disabled={createMutation.isPending || updateMutation.isPending}
-                  >
-                    Cancel
-                  </Button>
-                )}
               </div>
             </form>
           </Form>
@@ -256,15 +226,12 @@ export default function AccessManagementPage() {
             <RolesTable
               roles={filteredRoles}
               canEdit={access.can("userRoles", "edit")}
-              canDelete={access.can("userRoles", "edit")}
-              onEdit={(role) => setEditingRole(role)}
+              canDelete={access.can("userRoles", "delete")}
+              onEdit={(role) => router.push(`/admin/access/${role.id}`)}
               onDelete={(role) => {
-                if (!access.can("userRoles", "edit")) return
+                if (!access.can("userRoles", "delete")) return
                 if (window.confirm("Delete this role? This cannot be undone.")) {
                   deleteMutation.mutate({ id: role.id })
-                  if (editingRole?.id === role.id) {
-                    setEditingRole(null)
-                  }
                 }
               }}
             />

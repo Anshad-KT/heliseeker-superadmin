@@ -64,6 +64,7 @@ export function CentersTable({
     <Table>
       <TableHeader>
         <TableRow>
+          <TableHead className="w-16">Sl No</TableHead>
           <TableHead>Center</TableHead>
           <TableHead>Contact Email</TableHead>
           <TableHead>Contact Phone</TableHead>
@@ -74,7 +75,7 @@ export function CentersTable({
         </TableRow>
       </TableHeader>
       <TableBody>
-        {centers.map((center) => {
+        {centers.map((center, index) => {
           const isUpdatingCenter = updatingCenterId === center.id
           const isApproving = isUpdatingCenter && updatingStatus === "active"
           const isRejecting = isUpdatingCenter && updatingStatus === "rejected"
@@ -82,6 +83,7 @@ export function CentersTable({
 
           return (
             <TableRow key={center.id}>
+              <TableCell className="text-sm text-muted-foreground">{index + 1}</TableCell>
               <TableCell className="font-medium">{center.centerName}</TableCell>
               <TableCell>{center.contactEmail || "—"}</TableCell>
               <TableCell>{center.contactPhone || "—"}</TableCell>

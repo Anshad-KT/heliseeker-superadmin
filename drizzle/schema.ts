@@ -82,6 +82,25 @@ export const modules = pgTable("modules", {
   moduleParentLabel: text("module_parent_label"),
 })
 
+export const flatPages = pgTable(
+  "flat_pages",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    title: text("title").notNull(),
+    slug: text("slug").notNull(),
+    description: text("description").notNull().default(""),
+    enabled: boolean("enabled").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => sql`now()`),
+  },
+  (table) => ({
+    slugUnique: uniqueIndex("flat_pages_slug_unique").on(table.slug),
+  }),
+)
+
 // Legacy boolean-based table retained for migration/backfill.
 export const rolePermissionsLegacy = pgTable(
   "role_permissions_legacy",
@@ -141,3 +160,6 @@ export type RolePermissionLegacy = typeof rolePermissionsLegacy.$inferSelect
 export type NewRolePermissionLegacy = typeof rolePermissionsLegacy.$inferInsert
 export type RolePermission = typeof rolePermissions.$inferSelect
 export type NewRolePermission = typeof rolePermissions.$inferInsert
+
+export type FlatPage = typeof flatPages.$inferSelect
+export type NewFlatPage = typeof flatPages.$inferInsert

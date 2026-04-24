@@ -1,5 +1,6 @@
 import { AxiosError, AxiosResponse } from "axios";
 import { createBrowserClient } from "@supabase/ssr"
+import { SUPABASE_AUTH_COOKIE_NAME } from "@/lib/supabase-auth";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_KEY;
@@ -27,7 +28,12 @@ export class Supabase {
         this.supabaseKey = SUPABASE_KEY;
         this.supabase = createBrowserClient(
             process.env.NEXT_PUBLIC_SUPABASE_URL!,
-            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_KEY!
+            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_KEY!,
+            {
+                cookieOptions: {
+                    name: SUPABASE_AUTH_COOKIE_NAME,
+                },
+            }
         );
         return this;
     }

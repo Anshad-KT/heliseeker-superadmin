@@ -21,7 +21,7 @@ export function useTags() {
 export function useUpdateSeo() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (payload: { metaTitle: string; metaDescription: string }) => patchApi("/api/admin/seo", payload),
+    mutationFn: (payload: { metaTitle: string; metaDescription: string; ogImageUrl: string }) => patchApi("/api/admin/seo", payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-seo"] })
       queryClient.invalidateQueries({ queryKey: ["admin-dashboard"] })

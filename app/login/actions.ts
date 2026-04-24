@@ -13,9 +13,26 @@ export async function login(formData: FormData) {
     password: formData.get('password') as string,
   }
 
-  const { error } = await supabase.auth.signInWithPassword(data)
+  const { data: authData, error } = await supabase.auth.signInWithPassword(data)
 
   if (error) {
+    redirect('/error')
+  }
+
+  const authUserId = authData.user?.id
+  if (!authUserId) {
+    await supabase.auth.signOut()
+    redirect('/error')
+  }
+
+  const { data: adminRecord, error: adminErr } = await supabase
+    .from('admins')
+    .select('is_active')
+    .eq('auth_user_id', authUserId)
+    .single()
+
+  if (adminErr || !adminRecord?.is_active) {
+    await supabase.auth.signOut()
     redirect('/error')
   }
 

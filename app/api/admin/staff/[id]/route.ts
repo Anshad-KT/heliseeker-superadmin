@@ -13,7 +13,11 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
 
   const supabase = getServiceRoleSupabase()
 
-  if (payload.role && payload.role.trim() !== "super_admin") {
+  if (payload.role) {
+    const normalizedRole = payload.role.trim().toLowerCase().replace(/[\s-]+/g, "_")
+    if (normalizedRole === "super_admin") {
+      payload.role = "super_admin"
+    } else {
     const { data: roleRow, error: roleError } = await supabase
       .from("roles")
       .select("name")
@@ -30,6 +34,7 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
     }
 
     payload.role = roleRow.name
+    }
   }
 
   const { data: adminRow, error: adminError } = await supabase

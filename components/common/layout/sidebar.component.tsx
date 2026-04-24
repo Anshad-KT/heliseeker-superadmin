@@ -15,6 +15,7 @@ import {
   LogOut,
   Languages,
   Inbox,
+  Tags,
 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
@@ -57,11 +58,12 @@ export const MASTER_MENU: MenuItem[] = [
 ]
 
 export const SECONDARY_MENU: MenuItem[] = [
-  { key: "leads", icon: Inbox, label: "Enquiries", href: "/admin/leads", submenu: null, module: "leads" },
+  { key: "leads", icon: Inbox, label: "Enquiries", href: "/admin/enquiries", submenu: null, module: "leads" },
+  { key: "seo", icon: Tags, label: "SEO", href: "/admin/seo-tags", submenu: null, module: "seo" },
   {
     key: "customers",
     icon: UsersRound,
-    label: "Customers",
+    label: "Website Users",
     href: "/admin/users",
     submenu: null,
     module: "customers",
@@ -155,7 +157,7 @@ export function PrimarySidebar() {
         <Image src={logo} alt="Logo" width={26} height={26} className="w-8 h-8" />
         {isExpanded && <span className="ml-2 font-bold text-lg whitespace-nowrap">Heli Seeker</span>}
       </div>
-      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
+      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden no-scrollbar">
         <nav className={cn("flex w-full flex-col gap-1", !isExpanded && "items-center")}>
           {PRIMARY_MENU.filter((item) => canView(item.module)).map((item) => {
             const hasSubmenu = Array.isArray(item.submenu) && item.submenu.length > 0;

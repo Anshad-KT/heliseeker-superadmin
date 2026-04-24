@@ -2,10 +2,20 @@ export interface UserItem {
   id: string
   name: string
   email: string
+  guardianName?: string
+  guardianEmail?: string
+  countryOfResidency?: string
+  phoneNumber?: string
+  nationality?: string
+  childName?: string
+  dateOfBirth?: string
+  primaryLanguage?: string
+  avatarUrl?: string
   isVerified: boolean
   isActive: boolean
   userType?: string
   createdAt?: string
+  updatedAt?: string
 }
 
 export interface UsersResponse {

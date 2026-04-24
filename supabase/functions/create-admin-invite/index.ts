@@ -36,7 +36,10 @@ serve(async (req) => {
 
     const postmarkApiKey = Deno.env.get("POSTMARK_API_KEY");
     const postmarkFrom = Deno.env.get("POSTMARK_FROM_EMAIL");
-    const appUrl = Deno.env.get("APP_URL") ?? Deno.env.get("NEXT_PUBLIC_APP_URL");
+    const superadminBaseUrl =
+      Deno.env.get("SUPERADMIN_APP_URL") ??
+      Deno.env.get("NEXT_PUBLIC_SUPERADMIN_URL") ??
+      "https://heli-seeker-superadmin.vercel.app";
     if (!postmarkApiKey || !postmarkFrom) {
       return new Response(JSON.stringify({ message: "Missing Postmark configuration." }), {
         status: 500,
@@ -118,9 +121,8 @@ serve(async (req) => {
       });
     }
 
-    const defaultLoginUrl = `${new URL(req.url).origin}/login`;
-    const loginUrl = appUrl ? `${appUrl.replace(/\/$/, "")}/login` : defaultLoginUrl;
-    const supportUrl = appUrl ? `${appUrl.replace(/\/$/, "")}/admin/change-password` : `${new URL(req.url).origin}/admin/change-password`;
+    const loginUrl = `${superadminBaseUrl.replace(/\/$/, "")}/login`;
+    const supportUrl = `${superadminBaseUrl.replace(/\/$/, "")}/admin/change-password`;
 
     const emailPayload = {
       From: postmarkFrom,

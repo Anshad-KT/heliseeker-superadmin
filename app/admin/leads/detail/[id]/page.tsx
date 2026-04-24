@@ -16,7 +16,7 @@ export default function LeadDetail() {
   return (
     <ContentDetailLayout
       title="Enquiry Details"
-      onEdit={() => router.push(`/admin/leads/edit/${id}`)}
+      onEdit={() => router.push(`/admin/enquiries/edit/${id}`)}
       loading={isLoading}
       notFound={!lead || !!error}
       notFoundMessage={error ? "Error loading enquiry." : "Enquiry not found."}

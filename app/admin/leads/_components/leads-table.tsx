@@ -4,6 +4,7 @@ import Link from "next/link"
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 type LeadRow = {
   id: string
@@ -21,44 +22,56 @@ function formatCreatedAt(value: string | Date) {
   return date.toLocaleString()
 }
 
-function snippet(value: string | null, max = 80) {
-  if (!value) return "—"
-  const trimmed = value.trim()
-  if (trimmed.length <= max) return trimmed
-  return `${trimmed.slice(0, max)}…`
+function renderTruncated(value: string | null, maxWidthClass: string) {
+  const text = value?.trim() || "—"
+  if (text === "—") {
+    return <div className={`${maxWidthClass} truncate`}>{text}</div>
+  }
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <div className={`${maxWidthClass} truncate`}>{text}</div>
+      </TooltipTrigger>
+      <TooltipContent className="max-w-[520px] whitespace-pre-wrap break-words">{text}</TooltipContent>
+    </Tooltip>
+  )
 }
 
 export function LeadsTable({ leads }: { leads: LeadRow[] }) {
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Name</TableHead>
-          <TableHead>Email</TableHead>
-          <TableHead>Phone</TableHead>
-          <TableHead>Message</TableHead>
-          <TableHead>Created</TableHead>
-          <TableHead className="text-right">Actions</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {leads.map((lead) => (
-          <TableRow key={lead.id}>
-            <TableCell className="font-medium">
-              {lead.firstName} {lead.lastName}
-            </TableCell>
-            <TableCell>{lead.email}</TableCell>
-            <TableCell>{lead.phone || "—"}</TableCell>
-            <TableCell className="max-w-[380px]">{snippet(lead.message)}</TableCell>
-            <TableCell>{formatCreatedAt(lead.createdAt)}</TableCell>
-            <TableCell className="text-right">
-              <Button size="sm" variant="outline" asChild>
-                <Link href={`/admin/leads/${lead.id}`}>View</Link>
-              </Button>
-            </TableCell>
+    <TooltipProvider delayDuration={150}>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="w-16">Sl No</TableHead>
+            <TableHead>Name</TableHead>
+            <TableHead>Email</TableHead>
+            <TableHead>Phone</TableHead>
+            <TableHead>Message</TableHead>
+            <TableHead>Created</TableHead>
+            <TableHead className="text-right">Actions</TableHead>
           </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+        </TableHeader>
+        <TableBody>
+          {leads.map((lead, index) => (
+            <TableRow key={lead.id} className="hover:bg-transparent">
+              <TableCell className="text-sm text-muted-foreground">{index + 1}</TableCell>
+              <TableCell className="font-medium">
+                {renderTruncated(`${lead.firstName} ${lead.lastName}`.trim(), "max-w-[320px]")}
+              </TableCell>
+              <TableCell>{renderTruncated(lead.email, "max-w-[280px]")}</TableCell>
+              <TableCell>{renderTruncated(lead.phone, "max-w-[200px]")}</TableCell>
+              <TableCell>{renderTruncated(lead.message, "max-w-[380px]")}</TableCell>
+              <TableCell>{formatCreatedAt(lead.createdAt)}</TableCell>
+              <TableCell className="text-right">
+                <Button size="sm" variant="outline" asChild>
+                  <Link href={`/admin/enquiries/${lead.id}`}>View</Link>
+                </Button>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </TooltipProvider>
   )
 }

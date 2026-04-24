@@ -1,10 +1,12 @@
 "use client"
 
-import { useEffect } from "react"
+import Link from "next/link"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
+import { Eye, EyeOff } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
@@ -28,6 +30,8 @@ type FormValues = z.infer<typeof formSchema>
 export default function ChangePasswordPage() {
   const router = useRouter()
   const { toast } = useToast()
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -72,20 +76,60 @@ export default function ChangePasswordPage() {
         <div className="mb-6 text-center">
           <h1 className="text-2xl font-bold">Change Password</h1>
           <p className="text-muted-foreground mt-1">You must update your password before continuing.</p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Didn&apos;t receive or remember your credentials?{" "}
+            <Link href="/forgot-password" className="font-medium text-primary hover:underline">
+              Forgot Password?
+            </Link>
+          </p>
         </div>
         <Card className="border-border shadow-lg">
           <form onSubmit={form.handleSubmit(onSubmit)}>
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="password">New Password</Label>
-                <Input id="password" type="password" {...form.register("password")} />
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    className="pr-10"
+                    {...form.register("password")}
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-2 top-1/2 h-8 w-8 -translate-y-1/2"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </Button>
+                </div>
                 {form.formState.errors.password && (
                   <p className="text-sm text-destructive">{form.formState.errors.password.message}</p>
                 )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="confirmPassword">Confirm Password</Label>
-                <Input id="confirmPassword" type="password" {...form.register("confirmPassword")} />
+                <div className="relative">
+                  <Input
+                    id="confirmPassword"
+                    type={showConfirmPassword ? "text" : "password"}
+                    className="pr-10"
+                    {...form.register("confirmPassword")}
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-2 top-1/2 h-8 w-8 -translate-y-1/2"
+                    onClick={() => setShowConfirmPassword((prev) => !prev)}
+                    aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                  >
+                    {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </Button>
+                </div>
                 {form.formState.errors.confirmPassword && (
                   <p className="text-sm text-destructive">{form.formState.errors.confirmPassword.message}</p>
                 )}

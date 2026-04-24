@@ -24,7 +24,7 @@ interface CenterDecisionNotificationResult {
 }
 
 const DEFAULT_TIMEOUT_MS = 5000
-const PORTAL_URL = process.env.NEXT_PUBLIC_APP_URL?.trim() || "https://burjcon.com"
+const PORTAL_URL = process.env.NEXT_PUBLIC_APP_URL?.trim() || "https://heli-seeker-center-portal-nu.vercel.app/login"
 
 function escapeHtml(input: string) {
   return input

@@ -1,16 +1,34 @@
 import { NextRequest, NextResponse } from "next/server"
 import crypto from "node:crypto"
 
-import { getServerSupabase } from "@/app/api/_lib/supabase"
 import { getServiceRoleSupabase } from "@/app/api/_lib/supabase-admin"
 
 export async function GET(request: NextRequest) {
   const query = request.nextUrl.searchParams.get("q")?.toLowerCase() || ""
-  const supabase = await getServerSupabase()
+  const supabase = getServiceRoleSupabase()
+
+  const authUsersById = new Map<string, Record<string, unknown>>()
+  const perPage = 1000
+  let page = 1
+  let hasMoreAuthUsers = true
+
+  while (hasMoreAuthUsers) {
+    const { data: authUsers } = await supabase.auth.admin.listUsers({ page, perPage })
+    const users = authUsers?.users ?? []
+
+    users.forEach((user) => {
+      authUsersById.set(user.id, (user.user_metadata ?? {}) as Record<string, unknown>)
+    })
+
+    hasMoreAuthUsers = users.length === perPage
+    page += 1
+  }
 
   const { data, error } = await supabase
     .from("customer_profiles")
-    .select("user_id, guardian_name, child_name, is_active, created_at, users(id, email, user_type, is_verified, created_at)")
+    .select(
+      "auth_user_id, user_id, guardian_name, country_of_residency, phone_number, nationality, child_name, child_dob, primary_language, is_active, created_at, updated_at, users(id, email, user_type, is_verified, created_at)",
+    )
     .eq("users.user_type", "customer")
     .order("created_at", { ascending: false })
 
@@ -20,21 +38,46 @@ export async function GET(request: NextRequest) {
 
   const normalized = (data || []).map((item) => {
     const user = Array.isArray(item.users) ? item.users[0] : item.users
-    const name = item.guardian_name || item.child_name || user?.email || "Customer"
+    const metadata = item.auth_user_id ? authUsersById.get(item.auth_user_id) : undefined
+    const avatarUrl = typeof metadata?.avatar_url === "string" ? metadata.avatar_url : ""
+    const name = item.guardian_name || item.child_name || user?.email || "Website User"
     return {
       id: user?.id || item.user_id,
       name,
-      email: user?.email,
+      email: user?.email ?? "",
+      guardianName: item.guardian_name ?? "",
+      guardianEmail: user?.email ?? "",
+      countryOfResidency: item.country_of_residency ?? "",
+      phoneNumber: item.phone_number ?? "",
+      nationality: item.nationality ?? "",
+      childName: item.child_name ?? "",
+      dateOfBirth: item.child_dob ?? "",
+      primaryLanguage: item.primary_language ?? "",
+      avatarUrl,
       isVerified: user?.is_verified ?? false,
       isActive: item.is_active ?? true,
       userType: user?.user_type,
       createdAt: user?.created_at || item.created_at,
+      updatedAt: item.updated_at,
     }
-  })
+  }).filter((user) => Boolean(user.id))
 
   const filtered = query
     ? normalized.filter((user) => {
-        const haystack = `${user.name ?? ""} ${user.email ?? ""}`.toLowerCase()
+        const haystack = [
+          user.name,
+          user.email,
+          user.guardianName,
+          user.guardianEmail,
+          user.phoneNumber,
+          user.countryOfResidency,
+          user.nationality,
+          user.childName,
+          user.primaryLanguage,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase()
         return haystack.includes(query)
       })
     : normalized

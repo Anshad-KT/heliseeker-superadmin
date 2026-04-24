@@ -1,13 +1,14 @@
 "use client"
 
+import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useTheme } from "next-themes"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useMutation } from "@tanstack/react-query"
 import * as z from "zod"
-import { Sun, Moon, Package } from "lucide-react"
+import { Sun, Moon, Package, Eye, EyeOff } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -28,6 +29,7 @@ export default function LoginPage() {
     const { theme, setTheme } = useTheme()
     const { toast } = useToast()
     const trpc = useTRPC()
+    const [showPassword, setShowPassword] = useState(false)
 
     useEffect(() => {
         let active = true
@@ -127,15 +129,32 @@ export default function LoginPage() {
                                 />
                             </div>
                             <div className="space-y-2">
-                                <Label htmlFor="password">Password</Label>
-                                <Input
-                                    id="password"
-                                    type="password"
-                                    placeholder="Enter your password"
-                                    {...form.register("password")}
-                                    required
-                                    className="border-border"
-                                />
+                                <div className="flex items-center justify-between">
+                                    <Label htmlFor="password">Password</Label>
+                                    <Link href="/forgot-password" className="text-sm font-medium text-primary hover:underline">
+                                        Forgot Password?
+                                    </Link>
+                                </div>
+                                <div className="relative">
+                                    <Input
+                                        id="password"
+                                        type={showPassword ? "text" : "password"}
+                                        placeholder="Enter your password"
+                                        {...form.register("password")}
+                                        required
+                                        className="border-border pr-10"
+                                    />
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        className="absolute right-2 top-1/2 h-8 w-8 -translate-y-1/2"
+                                        onClick={() => setShowPassword((prev) => !prev)}
+                                        aria-label={showPassword ? "Hide password" : "Show password"}
+                                    >
+                                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                    </Button>
+                                </div>
                             </div>
                         </CardContent>
                         <CardFooter>

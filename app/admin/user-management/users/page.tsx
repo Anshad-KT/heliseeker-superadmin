@@ -28,7 +28,12 @@ export default function StaffUsersPage() {
   const createMutation = useCreateStaffUser()
   const updateMutation = useUpdateStaffUser()
   const deleteMutation = useDeleteStaffUser()
-  const roles = rolesData?.data || []
+  const rolesFromApi = rolesData?.data || []
+  const roles = useMemo(() => {
+    const hasSuperAdmin = rolesFromApi.some((role) => role.name.trim().toLowerCase().replace(/[\s-]+/g, "_") === "super_admin")
+    if (hasSuperAdmin) return rolesFromApi
+    return [{ id: "super_admin", name: "super_admin", permissions: [] }, ...rolesFromApi]
+  }, [rolesFromApi])
   const [search, setSearch] = useState("")
   const [editingUser, setEditingUser] = useState<StaffUserRow | null>(null)
   const [editName, setEditName] = useState("")
@@ -40,7 +45,7 @@ export default function StaffUsersPage() {
     defaultValues: {
       name: "",
       email: "",
-      role: roles[0]?.name || "manager",
+      role: rolesFromApi[0]?.name || "manager",
     },
   })
 
@@ -49,11 +54,13 @@ export default function StaffUsersPage() {
     const current = form.getValues("role")
     const exists = roles.some((role) => role.name === current)
     if (!exists) {
-      form.setValue("role", roles[0].name, { shouldValidate: true })
+      const fallback = roles.find((role) => role.name !== "super_admin")?.name || roles[0].name
+      form.setValue("role", fallback, { shouldValidate: true })
     }
   }, [roles, form])
 
   const canEdit = access.can("userManagement", "edit")
+  const canDelete = access.can("userManagement", "delete")
   const staffUsers = data?.data || []
   const filteredUsers = useMemo(() => {
     const term = search.trim().toLowerCase()
@@ -188,7 +195,8 @@ export default function StaffUsersPage() {
             <StaffTable
               users={filteredUsers}
               canEdit={canEdit}
-              canDelete={canEdit}
+              canDelete={canDelete}
+              getViewHref={(id) => `/admin/user-management/users/${id}`}
               onToggleStatus={(id, active) => updateMutation.mutate({ id, active })}
               onEdit={(user) => {
                 setEditingUser(user)
@@ -197,7 +205,7 @@ export default function StaffUsersPage() {
                 setEditRole(user.role || roles[0]?.name || "")
               }}
               onDelete={async (user) => {
-                if (!canEdit) return
+                if (!canDelete) return
                 if (!window.confirm("Delete this staff user? This cannot be undone.")) return
                 try {
                   await deleteMutation.mutateAsync({ id: user.id })

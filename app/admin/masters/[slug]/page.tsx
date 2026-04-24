@@ -49,7 +49,7 @@ const masterConfig = {
 type MasterKey = keyof typeof masterConfig
 
 const masterItemSchema = z.object({
-  name: z.string().min(2),
+  name: z.string().trim().min(2),
   description: z.string().optional(),
   departmentId: z.string().optional(),
   ageGroupId: z.string().optional(),
@@ -94,10 +94,12 @@ function SearchableSelect({
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className="w-full justify-between"
+          className="w-full min-w-0 justify-between gap-2 overflow-hidden"
           disabled={disabled}
         >
-          {selected?.label || placeholder}
+          <span className="min-w-0 flex-1 truncate text-left" title={selected?.label || placeholder}>
+            {selected?.label || placeholder}
+          </span>
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
@@ -187,8 +189,9 @@ export default function MasterPage({ params }: { params: Promise<{ slug: string 
 
     const current = (data?.data || []).find((item) => item.id === editingId)
     if (!current) return
+    const rawName = current.service_name ?? current.name ?? ""
     form.reset({
-      name: current.service_name ?? current.name ?? "",
+      name: rawName,
       description: current.description ?? "",
       departmentId: current.department_id ?? "",
       ageGroupId: current.age_group_id ?? "none",
@@ -198,6 +201,16 @@ export default function MasterPage({ params }: { params: Promise<{ slug: string 
       status: typeof current.status === "boolean" ? current.status : current.status === null || current.status === undefined ? true : Boolean(current.status),
     })
   }, [editingId, form, data?.data])
+
+  useEffect(() => {
+    if (!editingId) return
+    const id = "master-item-name"
+    requestAnimationFrame(() => {
+      const el = document.getElementById(id)
+      el?.scrollIntoView({ behavior: "smooth", block: "center" })
+      form.setFocus("name")
+    })
+  }, [editingId, form])
 
   const items = useMemo(() => {
     if (!config) return []
@@ -259,6 +272,8 @@ export default function MasterPage({ params }: { params: Promise<{ slug: string 
             <form
               className="grid gap-3 md:grid-cols-2"
               onSubmit={form.handleSubmit(async (values) => {
+                const cleanedName = values.name.trim()
+
                 if (slug === "services" && !values.departmentId) {
                   form.setError("departmentId", { message: "Department is required." })
                   return
@@ -286,14 +301,14 @@ export default function MasterPage({ params }: { params: Promise<{ slug: string 
                 const payload =
                   slug === "services"
                     ? {
-                        service_name: values.name,
+                        service_name: cleanedName,
                         description: values.description || undefined,
                         department_id: values.departmentId || undefined,
                         age_group_id: values.ageGroupId === "none" ? undefined : values.ageGroupId,
                       }
                     : slug === "age-groups"
                     ? {
-                        name: values.name,
+                        name: cleanedName,
                         description: values.description || undefined,
                         from_age: values.fromAge,
                         to_age: values.toAge,
@@ -301,7 +316,7 @@ export default function MasterPage({ params }: { params: Promise<{ slug: string 
                         status: values.status ?? true,
                       }
                     : {
-                        name: values.name,
+                        name: cleanedName,
                         description: values.description || undefined,
                       }
 
@@ -340,7 +355,11 @@ export default function MasterPage({ params }: { params: Promise<{ slug: string 
                   <FormItem>
                     <FormLabel>{config.nameLabel}</FormLabel>
                     <FormControl>
-                      <Input {...field} />
+                      <Input
+                        {...field}
+                        id="master-item-name"
+                        onChange={(event) => field.onChange(event.target.value)}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -561,8 +580,10 @@ export default function MasterPage({ params }: { params: Promise<{ slug: string 
           ) : (
             <MasterTable
               items={filteredItems}
+              getViewHref={(id) => `/admin/masters/${slug}/${id}`}
               onEdit={(id) => setEditingId(id)}
               onDelete={(id) => {
+                if (!access.can(moduleKey, "delete")) return
                 if (window.confirm("Delete this item? This cannot be undone.")) {
                   deleteMutation.mutateAsync({ id })
                     .then(() => {
@@ -583,7 +604,7 @@ export default function MasterPage({ params }: { params: Promise<{ slug: string 
                 }
               }}
               canEdit={access.can(moduleKey, "edit")}
-              canDelete={access.can(moduleKey, "edit")}
+              canDelete={access.can(moduleKey, "delete")}
               showDepartment={slug === "services"}
               showAgeGroup={slug === "services"}
               showAgeRange={slug === "age-groups"}

@@ -54,7 +54,7 @@ VALUES
   ('specialization', 'Specialization', null),
   ('ageGroup', 'Age Group', null),
   ('flatPages', 'Flat Pages', null),
-  ('customers', 'Customers', null),
+  ('customers', 'Website Users', null),
   ('userManagement', 'User Management', null),
   ('userRoles', 'User Roles', null)
 ON CONFLICT (module_name) DO NOTHING;

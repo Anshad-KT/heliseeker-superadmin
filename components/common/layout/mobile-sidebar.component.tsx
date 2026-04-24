@@ -53,7 +53,7 @@ export function MobileSidebar({ open, onClose }: { open: boolean; onClose: () =>
                 )}
                 onClick={e => e.stopPropagation()}
             >
-                <nav className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden flex flex-col gap-2 pr-1">
+                <nav className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden no-scrollbar flex flex-col gap-2 pr-1">
                     {PRIMARY_MENU.filter(item => !item.module || !access.isReady || access.can(item.module, "view")).map(item => (
                         <Link
                             key={item.key}

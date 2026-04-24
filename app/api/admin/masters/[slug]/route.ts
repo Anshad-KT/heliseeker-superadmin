@@ -35,7 +35,11 @@ const masterTableMap = {
     table: "age_groups",
     required: ["name", "from_age", "to_age", "unit"],
     allowed: ["name", "description", "from_age", "to_age", "unit", "status", "auth_user_id"],
-    orderBy: { column: "name", ascending: true },
+    orderBy: [
+      { column: "from_age", ascending: true },
+      { column: "to_age", ascending: true },
+      { column: "name", ascending: true },
+    ],
     supportsUpdatedAt: false,
   },
 } as const
@@ -44,6 +48,20 @@ type MasterSlug = keyof typeof masterTableMap
 
 function getConfig(slug: string) {
   return masterTableMap[slug as MasterSlug]
+}
+
+function isUniqueConstraintViolation(error: any) {
+  const message = typeof error?.message === "string" ? error.message : ""
+  const code = typeof error?.code === "string" ? error.code : ""
+  return code === "23505" || /duplicate key value violates unique constraint/i.test(message)
+}
+
+function getDuplicateMessage(slug: string) {
+  if (slug === "departments") return "A department with this name already exists. Duplicates are not allowed."
+  if (slug === "services") return "A service with this name already exists. Duplicates are not allowed."
+  if (slug === "specializations") return "A specialization with this name already exists. Duplicates are not allowed."
+  if (slug === "age-groups") return "An age group with this name already exists. Duplicates are not allowed."
+  return "Duplicate entry not allowed."
 }
 
 function pickAllowed(payload: Record<string, unknown>, allowed: readonly string[]) {
@@ -58,33 +76,26 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ sl
   }
 
   const supabase = await getServerSupabase()
+  const { data: userData } = await supabase.auth.getUser()
+  const authUserId = userData?.user?.id
   let query = supabase.from(config.table).select("*")
 
-  if (slug === "specializations" || slug === "departments" || slug === "services") {
-    const { data: adminUsers, error: adminError } = await supabase
-      .from("admins")
-      .select("auth_user_id")
-      .not("auth_user_id", "is", null)
-      .eq("role", "super_admin")
-
-    if (adminError) {
-      return NextResponse.json({ message: adminError.message }, { status: 500 })
+  if (slug === "specializations" || slug === "departments" || slug === "services" || slug === "age-groups") {
+    if (!authUserId) {
+      return NextResponse.json({ message: "Not authenticated" }, { status: 401 })
     }
 
-    const adminIds = (adminUsers || [])
-      .map((row) => row.auth_user_id)
-      .filter((id): id is string => Boolean(id))
-
-    if (adminIds.length === 0) {
-      return NextResponse.json({ data: [] })
-    }
-
-    query = query.in("auth_user_id", adminIds)
+    query = query.eq("auth_user_id", authUserId)
   }
 
-  const { data, error } = config.orderBy
-    ? await query.order(config.orderBy.column, { ascending: config.orderBy.ascending })
-    : await query
+  if (config.orderBy) {
+    const orders = Array.isArray(config.orderBy) ? config.orderBy : [config.orderBy]
+    for (const order of orders) {
+      query = query.order(order.column, { ascending: order.ascending })
+    }
+  }
+
+  const { data, error } = await query
 
   if (error) {
     return NextResponse.json({ message: error.message }, { status: 500 })
@@ -145,6 +156,9 @@ export async function POST(request: NextRequest, context: { params: Promise<{ sl
   const { data, error } = await supabase.from(config.table).insert([insertPayload]).select().single()
 
   if (error) {
+    if (isUniqueConstraintViolation(error)) {
+      return NextResponse.json({ message: getDuplicateMessage(slug) }, { status: 409 })
+    }
     return NextResponse.json({ message: error.message }, { status: 500 })
   }
 
@@ -206,6 +220,9 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ s
   const { data, error } = await supabase.from(config.table).update(updatePayload).eq("id", id).select().single()
 
   if (error) {
+    if (isUniqueConstraintViolation(error)) {
+      return NextResponse.json({ message: getDuplicateMessage(slug) }, { status: 409 })
+    }
     return NextResponse.json({ message: error.message }, { status: 500 })
   }
 
