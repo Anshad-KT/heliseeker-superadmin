@@ -6,6 +6,7 @@ import { useForm } from "react-hook-form"
 import { z } from "zod"
 import { useRouter } from "next/navigation"
 
+import { AppLoader } from "@/components/ui/app-loader"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
@@ -243,7 +244,7 @@ export default function MasterPage({ params }: { params: Promise<{ slug: string 
   }, [items, tableQuery])
 
   if (!access.isReady) {
-    return <p className="text-sm text-muted-foreground">Loading...</p>
+    return <AppLoader label="Loading..." className="justify-start text-sm" imageClassName="h-9 w-9" />
   }
 
   if (!config) {
@@ -574,7 +575,11 @@ export default function MasterPage({ params }: { params: Promise<{ slug: string 
             />
           </div>
           {isLoading ? (
-            <p className="text-sm text-muted-foreground">Loading {config.title.toLowerCase()}...</p>
+            <AppLoader
+              label={`Loading ${config.title.toLowerCase()}...`}
+              className="justify-start text-sm"
+              imageClassName="h-9 w-9"
+            />
           ) : slug === "age-groups" && filteredItems.length === 0 ? (
             <p className="text-sm text-muted-foreground">No age groups found.</p>
           ) : (

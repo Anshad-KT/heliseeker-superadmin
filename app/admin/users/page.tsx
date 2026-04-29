@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react"
 import { Eye } from "lucide-react"
 
+import { AppLoader } from "@/components/ui/app-loader"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -149,7 +150,7 @@ export default function UsersPage() {
   const hasActiveFilters = Boolean(ageFilter) || nationalityFilter !== "all"
 
   if (!access.isReady) {
-    return <p className="text-sm text-muted-foreground">Loading...</p>
+    return <AppLoader label="Loading..." className="justify-start text-sm" imageClassName="h-9 w-9" />
   }
 
   return (
@@ -205,7 +206,7 @@ export default function UsersPage() {
           </div>
 
           {isLoading ? (
-            <p className="text-sm text-muted-foreground">Loading users...</p>
+            <AppLoader label="Loading users..." className="justify-start text-sm" imageClassName="h-9 w-9" />
           ) : (
             <div className="overflow-x-auto">
               <Table>

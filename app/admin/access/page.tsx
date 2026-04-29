@@ -5,6 +5,7 @@ import { useMemo, useState } from "react"
 import { useForm } from "react-hook-form"
 import { useRouter } from "next/navigation"
 
+import { AppLoader } from "@/components/ui/app-loader"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -70,7 +71,7 @@ export default function AccessManagementPage() {
   }, [roles, search])
 
   if (!access.isReady) {
-    return <p className="text-sm text-muted-foreground">Loading...</p>
+    return <AppLoader label="Loading..." className="justify-start text-sm" imageClassName="h-9 w-9" />
   }
 
   return (
@@ -221,7 +222,7 @@ export default function AccessManagementPage() {
             />
           </div>
           {isLoading ? (
-            <p className="text-sm text-muted-foreground">Loading roles...</p>
+            <AppLoader label="Loading roles..." className="justify-start text-sm" imageClassName="h-9 w-9" />
           ) : (
             <RolesTable
               roles={filteredRoles}

@@ -5,6 +5,7 @@ import { use, useEffect, useMemo } from "react"
 import { useForm } from "react-hook-form"
 import { useRouter } from "next/navigation"
 
+import { AppLoader } from "@/components/ui/app-loader"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -72,7 +73,7 @@ export default function EditRolePage({ params }: { params: Promise<{ id: string 
   }, [role, form, buildPermissions])
 
   if (!access.isReady || rolesQuery.isLoading) {
-    return <p className="text-sm text-muted-foreground">Loading...</p>
+    return <AppLoader label="Loading..." className="justify-start text-sm" imageClassName="h-9 w-9" />
   }
 
   if (!role) {

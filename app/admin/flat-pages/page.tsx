@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react"
 import { useForm } from "react-hook-form"
 import dynamic from "next/dynamic"
 
+import { AppLoader } from "@/components/ui/app-loader"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
@@ -241,7 +242,7 @@ export default function FlatPagesPage() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <p className="text-sm text-muted-foreground">Loading pages...</p>
+            <AppLoader label="Loading pages..." className="justify-start text-sm" imageClassName="h-9 w-9" />
           ) : (
             <FlatPagesTable
               pages={data?.data || []}

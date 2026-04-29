@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { useMutation } from "@tanstack/react-query"
 import { z } from "zod"
 
+import { AppLoader } from "@/components/ui/app-loader"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
@@ -60,7 +61,7 @@ export default function OnboardingClient() {
   const isNew = useMemo(() => !status, [status])
 
   if (approvalQuery.isLoading) {
-    return <div className="text-sm text-muted-foreground">Loading onboarding...</div>
+    return <AppLoader label="Loading onboarding..." className="text-sm" />
   }
 
   if (status === "pending") {

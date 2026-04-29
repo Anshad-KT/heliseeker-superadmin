@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { useEffect, useMemo, useState } from "react"
 import { useForm } from "react-hook-form"
 
+import { AppLoader } from "@/components/ui/app-loader"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -73,7 +74,7 @@ export default function StaffUsersPage() {
   }, [search, staffUsers])
 
   if (!access.isReady) {
-    return <p className="text-sm text-muted-foreground">Loading...</p>
+    return <AppLoader label="Loading..." className="justify-start text-sm" imageClassName="h-9 w-9" />
   }
 
   return (
@@ -190,7 +191,7 @@ export default function StaffUsersPage() {
             />
           </div>
           {isLoading ? (
-            <p className="text-sm text-muted-foreground">Loading staff users...</p>
+            <AppLoader label="Loading staff users..." className="justify-start text-sm" imageClassName="h-9 w-9" />
           ) : (
             <StaffTable
               users={filteredUsers}

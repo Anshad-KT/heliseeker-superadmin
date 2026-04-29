@@ -5,6 +5,7 @@ import { useEffect, useState } from "react"
 import { useForm } from "react-hook-form"
 import { Loader2 } from "lucide-react"
 
+import { AppLoader } from "@/components/ui/app-loader"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
@@ -86,7 +87,7 @@ export default function SeoTagsPage() {
         </CardHeader>
         <CardContent>
           {seoLoading ? (
-            <p className="text-sm text-muted-foreground">Loading SEO...</p>
+            <AppLoader label="Loading SEO..." className="justify-start text-sm" imageClassName="h-9 w-9" />
           ) : (
             <Form {...seoForm}>
               <form className="space-y-4" onSubmit={seoForm.handleSubmit((values) => updateSeoMutation.mutate(values))}>

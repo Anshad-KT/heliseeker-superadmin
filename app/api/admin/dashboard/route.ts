@@ -247,7 +247,8 @@ export async function GET() {
 
   return NextResponse.json({
     centers: {
-      total: centersResult.data?.length ?? 0,
+      total:
+        centersResult.data?.filter((center) => center.approval_status !== "submitted").length ?? 0,
       pending: submittedCentersResult.count ?? 0,
       submitted: submittedCentersResult.count ?? 0,
       active: activeCentersResult.count ?? 0,

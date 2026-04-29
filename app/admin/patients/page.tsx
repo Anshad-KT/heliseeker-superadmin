@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 
+import { AppLoader } from "@/components/ui/app-loader"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
@@ -36,7 +37,7 @@ export default function PatientsPage() {
           />
 
           {isLoading ? (
-            <p className="text-sm text-muted-foreground">Loading users...</p>
+            <AppLoader label="Loading users..." className="justify-start text-sm" imageClassName="h-9 w-9" />
           ) : (
             <Table>
               <TableHeader>

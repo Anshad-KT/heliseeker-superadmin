@@ -5,6 +5,7 @@ import { useMemo, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { useSearchParams } from "next/navigation"
 
+import { AppLoader } from "@/components/ui/app-loader"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
@@ -262,7 +263,7 @@ export default function SearchFiltersPage() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <p className="text-sm text-muted-foreground">Loading search filters...</p>
+            <AppLoader label="Loading search filters..." className="justify-start text-sm" imageClassName="h-9 w-9" />
           ) : (
             <FilterList
               items={data?.data || []}

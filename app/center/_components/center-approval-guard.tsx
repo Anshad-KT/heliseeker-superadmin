@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react"
 
+import { AppLoader } from "@/components/ui/app-loader"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useCenterApproval } from "../_hooks/use-center-approval"
 
@@ -19,9 +20,7 @@ export function CenterApprovalGuard({
   const { isLoading, isApproved, isPending, isRejected } = useCenterApproval()
 
   if (isLoading) {
-    return (
-      <div className="text-sm text-muted-foreground">Checking approval status...</div>
-    )
+    return <AppLoader label="Checking approval status..." className="justify-start text-sm" />
   }
 
   if (isApproved) return <>{children}</>

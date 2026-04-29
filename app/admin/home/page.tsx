@@ -14,6 +14,7 @@ import {
 } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
+import { AppLoader } from "@/components/ui/app-loader"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -72,7 +73,7 @@ export default function AdminHomePage() {
   const [showAllUsers, setShowAllUsers] = useState(false)
 
   if (isLoading || !data) {
-    return <div className="py-6 px-4 text-sm text-muted-foreground">Loading dashboard...</div>
+    return <AppLoader label="Loading dashboard..." className="px-4 py-6 text-sm" />
   }
 
   const visibleLocations = showAllLocations ? data.centersByLocation : data.centersByLocation.slice(0, 5)

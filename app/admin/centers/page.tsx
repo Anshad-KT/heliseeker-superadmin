@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { useForm } from "react-hook-form"
 
+import { AppLoader } from "@/components/ui/app-loader"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { SearchInput } from "@/components/ui/search-input"
@@ -104,7 +105,7 @@ export default function CentersPage() {
           {error ? (
             <p className="text-sm text-destructive">Failed to load centers: {error.message}</p>
           ) : isLoading ? (
-            <p className="text-sm text-muted-foreground">Loading centers...</p>
+            <AppLoader label="Loading centers..." className="justify-start text-sm" imageClassName="h-9 w-9" />
           ) : (
             <div className="space-y-2">
               <h3 className="text-lg font-semibold">
