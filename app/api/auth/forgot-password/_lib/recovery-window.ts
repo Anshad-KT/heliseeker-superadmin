@@ -1,7 +1,7 @@
 import { cookies } from "next/headers"
 
 const RECOVERY_COOKIE_NAME = "hs_superadmin_forgot_password_recovery"
-const OTP_MAX_AGE_MS = 10 * 60 * 1000
+const OTP_MAX_AGE_MS = 45 * 1000
 
 type RecoveryCookiePayload = {
   email: string

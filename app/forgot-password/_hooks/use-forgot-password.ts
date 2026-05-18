@@ -20,7 +20,7 @@ import {
   setRecoveryOtpSentAt,
 } from "../_utils"
 
-const FORGOT_PASSWORD_OTP_MAX_AGE_MS = 10 * 60 * 1000
+const FORGOT_PASSWORD_OTP_MAX_AGE_MS = 45 * 1000
 
 async function readErrorMessage(response: Response) {
   try {

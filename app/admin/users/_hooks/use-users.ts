@@ -1,3 +1,4 @@
+import { useDeferredValue } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { deleteApi, getApi, patchApi, postApi } from "@/lib/admin-panel/client"
@@ -5,9 +6,13 @@ import { deleteApi, getApi, patchApi, postApi } from "@/lib/admin-panel/client"
 import { CreateUserPayload, CreateUserResponse, UpdateUserPayload, UsersResponse } from "../_types"
 
 export function useUsers(query: string) {
+  const deferredQuery = useDeferredValue(query)
+
   return useQuery({
-    queryKey: ["admin-users", query],
-    queryFn: () => getApi<UsersResponse>(`/api/admin/users?q=${encodeURIComponent(query)}`),
+    queryKey: ["admin-users", deferredQuery],
+    queryFn: () => getApi<UsersResponse>(`/api/admin/users?q=${encodeURIComponent(deferredQuery)}`),
+    staleTime: 30_000,
+    placeholderData: (previousData) => previousData,
   })
 }
 

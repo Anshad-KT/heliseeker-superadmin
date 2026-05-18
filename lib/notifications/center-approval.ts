@@ -24,7 +24,6 @@ interface CenterDecisionNotificationResult {
 }
 
 const DEFAULT_TIMEOUT_MS = 5000
-const PORTAL_URL = process.env.NEXT_PUBLIC_APP_URL?.trim() || "https://heli-seeker-center-portal-nu.vercel.app/login"
 
 function escapeHtml(input: string) {
   return input
@@ -33,6 +32,52 @@ function escapeHtml(input: string) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;")
+}
+
+function getWebsiteUrl() {
+  return (
+    process.env.NEXT_PUBLIC_WEBSITE_URL?.trim() ||
+    process.env.NEXT_PUBLIC_SITE_URL?.trim() ||
+    process.env.SITE_URL?.trim() ||
+    process.env.NEXT_PUBLIC_APP_URL?.trim() ||
+    "https://heliseeker.com"
+  ).replace(/\/$/, "")
+}
+
+function getContactLine() {
+  const contactEmail =
+    process.env.CONTACT_EMAIL?.trim() ||
+    process.env.NEXT_PUBLIC_CONTACT_EMAIL?.trim() ||
+    process.env.RESEND_FROM_EMAIL?.trim() ||
+    process.env.SMTP_FROM?.trim() ||
+    process.env.SMTP_USER?.trim() ||
+    ""
+  const contactPhone =
+    process.env.CONTACT_PHONE?.trim() ||
+    process.env.NEXT_PUBLIC_CONTACT_PHONE?.trim() ||
+    ""
+
+  return [contactEmail, contactPhone].filter(Boolean).join(" / ")
+}
+
+function formatSignatureHtml() {
+  const websiteUrl = getWebsiteUrl()
+  const contactLine = getContactLine()
+
+  return [
+    "<p>Warm regards,<br />Team Heli Seeker</p>",
+    `<p><a href="${escapeHtml(websiteUrl)}">${escapeHtml(websiteUrl)}</a></p>`,
+    contactLine ? `<p>${escapeHtml(contactLine)}</p>` : "",
+  ]
+    .filter(Boolean)
+    .join("")
+}
+
+function formatSignatureText() {
+  const lines = ["Warm regards,", "Team Heli Seeker", getWebsiteUrl()]
+  const contactLine = getContactLine()
+  if (contactLine) lines.push(contactLine)
+  return lines.join("\n")
 }
 
 function buildCenterDecisionEmail(payload: CenterDecisionNotificationPayload): CenterDecisionEmailPayload | null {
@@ -46,28 +91,56 @@ function buildCenterDecisionEmail(payload: CenterDecisionNotificationPayload): C
   if (payload.status === "active") {
     return {
       to: payload.contactEmail,
-      subject: "Your center profile has been approved",
+      subject: "Registration Approved – Heli Seeker",
       html: `
-        <p>Hello,</p>
-        <p>Your center profile for <strong>${safeCenterName}</strong> has been approved.</p>
-        <p>You can now access your center portal.</p>
-        <p><a href="${PORTAL_URL}/login">Go to portal</a></p>
+        <p>Dear ${safeCenterName},</p>
+        <p>Congratulations! Your registration with Heli Seeker has been approved successfully.</p>
+        <p>You may now proceed to complete and manage your centre information through the platform. Our team will guide you through the next steps if required.</p>
+        <p>We are excited to have you onboard and look forward to working with you.</p>
+        ${formatSignatureHtml()}
       `,
-      text: `Hello,\n\nYour center profile for ${payload.centerName} has been approved.\nYou can now access your center portal.\n\nPortal: ${PORTAL_URL}/login`,
+      text: [
+        `Dear ${payload.centerName},`,
+        "",
+        "Congratulations! Your registration with Heli Seeker has been approved successfully.",
+        "",
+        "You may now proceed to complete and manage your centre information through the platform. Our team will guide you through the next steps if required.",
+        "",
+        "We are excited to have you onboard and look forward to working with you.",
+        "",
+        formatSignatureText(),
+      ].join("\n"),
     }
   }
 
   if (payload.status === "rejected") {
     return {
       to: payload.contactEmail,
-      subject: "Your center profile request was rejected",
+      subject: "Registration Rejected – Heli Seeker",
       html: `
-        <p>Hello,</p>
-        <p>Your center profile request for <strong>${safeCenterName}</strong> has been rejected.</p>
-        ${safeApprovalNote ? `<p>Reason: ${safeApprovalNote}</p>` : ""}
-        <p>Please update your details and resubmit your onboarding request.</p>
+        <p>Dear ${safeCenterName},</p>
+        <p>Thank you for registering with Heli Seeker.</p>
+        <p>After reviewing your registration details, we regret to inform you that your registration has been rejected due to the following reason:</p>
+        <p><strong>Reject Reason:</strong> ${safeApprovalNote || "Not specified"}</p>
+        <p>You may review the submitted details, make the necessary corrections, and reapply through the platform.</p>
+        <p>If you require any assistance or clarification, please feel free to contact our support team.</p>
+        ${formatSignatureHtml()}
       `,
-      text: `Hello,\n\nYour center profile request for ${payload.centerName} has been rejected.${payload.approvalNote ? `\nReason: ${payload.approvalNote}` : ""}\n\nPlease update your details and resubmit your onboarding request.`,
+      text: [
+        `Dear ${payload.centerName},`,
+        "",
+        "Thank you for registering with Heli Seeker.",
+        "",
+        "After reviewing your registration details, we regret to inform you that your registration has been rejected due to the following reason:",
+        "",
+        `Reject Reason: ${payload.approvalNote || "Not specified"}`,
+        "",
+        "You may review the submitted details, make the necessary corrections, and reapply through the platform.",
+        "",
+        "If you require any assistance or clarification, please feel free to contact our support team.",
+        "",
+        formatSignatureText(),
+      ].join("\n"),
     }
   }
 
