@@ -40,6 +40,11 @@ export async function generateMetadata(): Promise<Metadata> {
     title: "Heliseeker Superadmin",
     description: "Heliseeker Superadmin admin panel.",
   }
+  const icons: Metadata["icons"] = {
+    icon: [{ url: "/logo.png" }],
+    shortcut: [{ url: "/logo.png" }],
+    apple: [{ url: "/logo.png" }],
+  }
 
   try {
     const supabase = getServiceRoleSupabase()
@@ -58,6 +63,7 @@ export async function generateMetadata(): Promise<Metadata> {
       metadataBase,
       title,
       description,
+      icons,
       openGraph: {
         type: "website",
         title,
@@ -77,6 +83,7 @@ export async function generateMetadata(): Promise<Metadata> {
       metadataBase,
       title: defaults.title,
       description: defaults.description,
+      icons,
       openGraph: {
         type: "website",
         title: defaults.title,

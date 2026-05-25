@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 
 import { getServerSupabase } from "@/app/api/_lib/supabase"
+import { getServiceRoleSupabase } from "@/app/api/_lib/supabase-admin"
 
 const masterTableMap = {
   departments: {
@@ -68,6 +69,28 @@ function pickAllowed(payload: Record<string, unknown>, allowed: readonly string[
   return Object.fromEntries(Object.entries(payload).filter(([key]) => allowed.includes(key)))
 }
 
+function shouldScopeByAuthUser(slug: string) {
+  return slug === "specializations" || slug === "departments" || slug === "services" || slug === "age-groups"
+}
+
+async function getRequestContext() {
+  const sessionSupabase = await getServerSupabase()
+  const { data: userData } = await sessionSupabase.auth.getUser()
+  const authUserId = userData?.user?.id
+
+  if (!authUserId) {
+    return { error: NextResponse.json({ message: "Not authenticated" }, { status: 401 }) }
+  }
+
+  try {
+    const serviceRoleSupabase = getServiceRoleSupabase()
+    return { supabase: serviceRoleSupabase, authUserId, error: null }
+  } catch {
+    // Fallback keeps local/dev flows working when service-role env vars are absent.
+    return { supabase: sessionSupabase, authUserId, error: null }
+  }
+}
+
 export async function GET(_request: NextRequest, context: { params: Promise<{ slug: string }> }) {
   const { slug } = await context.params
   const config = getConfig(slug)
@@ -75,16 +98,13 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ sl
     return NextResponse.json({ message: "Unknown master type" }, { status: 400 })
   }
 
-  const supabase = await getServerSupabase()
-  const { data: userData } = await supabase.auth.getUser()
-  const authUserId = userData?.user?.id
+  const requestContext = await getRequestContext()
+  if (requestContext.error) return requestContext.error
+  const { supabase, authUserId } = requestContext
+
   let query = supabase.from(config.table).select("*")
 
-  if (slug === "specializations" || slug === "departments" || slug === "services" || slug === "age-groups") {
-    if (!authUserId) {
-      return NextResponse.json({ message: "Not authenticated" }, { status: 401 })
-    }
-
+  if (shouldScopeByAuthUser(slug)) {
     query = query.eq("auth_user_id", authUserId)
   }
 
@@ -112,16 +132,11 @@ export async function POST(request: NextRequest, context: { params: Promise<{ sl
   }
 
   const payload = (await request.json()) as Record<string, unknown>
-  const supabase = await getServerSupabase()
-
-  const { data: userData } = await supabase.auth.getUser()
-  const authUserId = userData?.user?.id
+  const requestContext = await getRequestContext()
+  if (requestContext.error) return requestContext.error
+  const { supabase, authUserId } = requestContext
 
   if (slug === "age-groups") {
-    if (!authUserId) {
-      return NextResponse.json({ message: "Not authenticated" }, { status: 401 })
-    }
-
     const rawName = typeof payload.name === "string" ? payload.name : ""
     const name = rawName.trim()
     if (name) {
@@ -178,15 +193,11 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ s
     return NextResponse.json({ message: "Missing id" }, { status: 400 })
   }
 
-  const supabase = await getServerSupabase()
+  const requestContext = await getRequestContext()
+  if (requestContext.error) return requestContext.error
+  const { supabase, authUserId } = requestContext
 
   if (slug === "age-groups" && payload.name !== undefined) {
-    const { data: userData } = await supabase.auth.getUser()
-    const authUserId = userData?.user?.id
-    if (!authUserId) {
-      return NextResponse.json({ message: "Not authenticated" }, { status: 401 })
-    }
-
     const rawName = typeof payload.name === "string" ? payload.name : ""
     const name = rawName.trim()
     payload.name = name
@@ -213,17 +224,29 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ s
   const updatePayload = {
     ...pickAllowed(payload, config.allowed),
   }
+  if (shouldScopeByAuthUser(slug)) {
+    updatePayload.auth_user_id = authUserId
+  }
   if (config.supportsUpdatedAt) {
     updatePayload.updated_at = new Date().toISOString()
   }
 
-  const { data, error } = await supabase.from(config.table).update(updatePayload).eq("id", id).select().single()
+  let updateQuery = supabase.from(config.table).update(updatePayload).eq("id", id)
+  if (shouldScopeByAuthUser(slug)) {
+    updateQuery = updateQuery.eq("auth_user_id", authUserId)
+  }
+
+  const { data, error } = await updateQuery.select().maybeSingle()
 
   if (error) {
     if (isUniqueConstraintViolation(error)) {
       return NextResponse.json({ message: getDuplicateMessage(slug) }, { status: 409 })
     }
     return NextResponse.json({ message: error.message }, { status: 500 })
+  }
+
+  if (!data) {
+    return NextResponse.json({ message: "Item not found" }, { status: 404 })
   }
 
   return NextResponse.json({ data })
@@ -241,8 +264,16 @@ export async function DELETE(request: NextRequest, context: { params: Promise<{ 
     return NextResponse.json({ message: "Missing id" }, { status: 400 })
   }
 
-  const supabase = await getServerSupabase()
-  const { error } = await supabase.from(config.table).delete().eq("id", payload.id)
+  const requestContext = await getRequestContext()
+  if (requestContext.error) return requestContext.error
+  const { supabase, authUserId } = requestContext
+
+  let deleteQuery = supabase.from(config.table).delete().eq("id", payload.id)
+  if (shouldScopeByAuthUser(slug)) {
+    deleteQuery = deleteQuery.eq("auth_user_id", authUserId)
+  }
+
+  const { error } = await deleteQuery
 
   if (error) {
     return NextResponse.json({ message: error.message }, { status: 500 })
