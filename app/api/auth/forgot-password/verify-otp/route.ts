@@ -20,6 +20,13 @@ function normalizeOtp(otp: string) {
   return otp.replace(/\D/g, "").slice(0, OTP_LENGTH)
 }
 
+function getVerifyTypes() {
+  if (process.env.FORGOT_PASSWORD_LOG_ONLY === "true") {
+    return ["email", "recovery"] as const
+  }
+  return ["email"] as const
+}
+
 function mapVerifyOtpError(error: unknown) {
   if (error instanceof Error && /expired|invalid/i.test(error.message)) {
     return new Error("OTP has expired or is invalid. Use the latest 6-digit code sent to your email.")
@@ -44,21 +51,35 @@ export async function POST(request: Request) {
     await assertValidForgotPasswordRecovery(email)
 
     const db = await getServerSupabase()
-    const { data, error } = await db.auth.verifyOtp({
-      email,
-      token: otp,
-      type: "email",
-    })
+    let verifiedData: Awaited<ReturnType<typeof db.auth.verifyOtp>>["data"] | null = null
+    let verifyError: Error | null = null
 
-    if (error) {
-      const mapped = mapVerifyOtpError(new Error(error.message))
+    for (const type of getVerifyTypes()) {
+      const { data, error } = await db.auth.verifyOtp({
+        email,
+        token: otp,
+        type,
+      })
+
+      if (!error && data.session && data.user) {
+        verifiedData = data
+        break
+      }
+
+      if (error) {
+        verifyError = new Error(error.message)
+      }
+    }
+
+    if (!verifiedData) {
+      const mapped = mapVerifyOtpError(verifyError ?? new Error("Invalid OTP."))
       return NextResponse.json(
         { error: mapped instanceof Error ? mapped.message : "Invalid OTP." },
         { status: 401 },
       )
     }
 
-    if (!data.session || !data.user) {
+    if (!verifiedData.session || !verifiedData.user) {
       return NextResponse.json(
         { error: "OTP verification failed to create reset session." },
         { status: 401 },
