@@ -91,6 +91,26 @@ async function getRequestContext() {
   }
 }
 
+async function getAdminAuthUserIds(supabase: any, fallbackAuthUserId: string) {
+  const { data, error } = await supabase
+    .from("admins")
+    .select("auth_user_id")
+    .not("auth_user_id", "is", null)
+
+  if (error) {
+    return { adminAuthUserIds: [fallbackAuthUserId], error }
+  }
+
+  const adminAuthUserIds = Array.from(
+    new Set((data || []).map((admin: { auth_user_id: string | null }) => admin.auth_user_id).filter(Boolean) as string[]),
+  )
+
+  return {
+    adminAuthUserIds: adminAuthUserIds.length > 0 ? adminAuthUserIds : [fallbackAuthUserId],
+    error: null,
+  }
+}
+
 export async function GET(_request: NextRequest, context: { params: Promise<{ slug: string }> }) {
   const { slug } = await context.params
   const config = getConfig(slug)
@@ -105,7 +125,12 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ sl
   let query = supabase.from(config.table).select("*")
 
   if (shouldScopeByAuthUser(slug)) {
-    query = query.eq("auth_user_id", authUserId)
+    const { adminAuthUserIds, error } = await getAdminAuthUserIds(supabase, authUserId)
+    if (error) {
+      return NextResponse.json({ message: error.message }, { status: 500 })
+    }
+
+    query = query.in("auth_user_id", adminAuthUserIds)
   }
 
   if (config.orderBy) {
@@ -137,6 +162,11 @@ export async function POST(request: NextRequest, context: { params: Promise<{ sl
   const { supabase, authUserId } = requestContext
 
   if (slug === "age-groups") {
+    const { adminAuthUserIds, error: adminAuthUserIdsError } = await getAdminAuthUserIds(supabase, authUserId)
+    if (adminAuthUserIdsError) {
+      return NextResponse.json({ message: adminAuthUserIdsError.message }, { status: 500 })
+    }
+
     const rawName = typeof payload.name === "string" ? payload.name : ""
     const name = rawName.trim()
     if (name) {
@@ -144,7 +174,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ sl
       const { data: existing, error: existingError } = await supabase
         .from("age_groups")
         .select("id")
-        .eq("auth_user_id", authUserId)
+        .in("auth_user_id", adminAuthUserIds)
         .ilike("name", name)
         .limit(1)
 
@@ -198,6 +228,11 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ s
   const { supabase, authUserId } = requestContext
 
   if (slug === "age-groups" && payload.name !== undefined) {
+    const { adminAuthUserIds, error: adminAuthUserIdsError } = await getAdminAuthUserIds(supabase, authUserId)
+    if (adminAuthUserIdsError) {
+      return NextResponse.json({ message: adminAuthUserIdsError.message }, { status: 500 })
+    }
+
     const rawName = typeof payload.name === "string" ? payload.name : ""
     const name = rawName.trim()
     payload.name = name
@@ -206,7 +241,7 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ s
       const { data: existing, error: existingError } = await supabase
         .from("age_groups")
         .select("id")
-        .eq("auth_user_id", authUserId)
+        .in("auth_user_id", adminAuthUserIds)
         .ilike("name", name)
         .neq("id", id)
         .limit(1)
@@ -221,19 +256,23 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ s
     }
   }
 
-  const updatePayload = {
+  const updatePayload: Record<string, unknown> = {
     ...pickAllowed(payload, config.allowed),
   }
-  if (shouldScopeByAuthUser(slug)) {
-    updatePayload.auth_user_id = authUserId
-  }
+  delete updatePayload.auth_user_id
+
   if (config.supportsUpdatedAt) {
     updatePayload.updated_at = new Date().toISOString()
   }
 
   let updateQuery = supabase.from(config.table).update(updatePayload).eq("id", id)
   if (shouldScopeByAuthUser(slug)) {
-    updateQuery = updateQuery.eq("auth_user_id", authUserId)
+    const { adminAuthUserIds, error: adminAuthUserIdsError } = await getAdminAuthUserIds(supabase, authUserId)
+    if (adminAuthUserIdsError) {
+      return NextResponse.json({ message: adminAuthUserIdsError.message }, { status: 500 })
+    }
+
+    updateQuery = updateQuery.in("auth_user_id", adminAuthUserIds)
   }
 
   const { data, error } = await updateQuery.select().maybeSingle()
@@ -270,7 +309,12 @@ export async function DELETE(request: NextRequest, context: { params: Promise<{ 
 
   let deleteQuery = supabase.from(config.table).delete().eq("id", payload.id)
   if (shouldScopeByAuthUser(slug)) {
-    deleteQuery = deleteQuery.eq("auth_user_id", authUserId)
+    const { adminAuthUserIds, error: adminAuthUserIdsError } = await getAdminAuthUserIds(supabase, authUserId)
+    if (adminAuthUserIdsError) {
+      return NextResponse.json({ message: adminAuthUserIdsError.message }, { status: 500 })
+    }
+
+    deleteQuery = deleteQuery.in("auth_user_id", adminAuthUserIds)
   }
 
   const { error } = await deleteQuery
