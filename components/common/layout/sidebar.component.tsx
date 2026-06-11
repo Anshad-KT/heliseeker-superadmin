@@ -53,7 +53,7 @@ export const PRIMARY_MENU: MenuItem[] = [
 export const MASTER_MENU: MenuItem[] = [
   { key: "departments", icon: Building2, label: "Departments", href: "/admin/masters/departments", submenu: null, module: "department" },
   { key: "services", icon: Package, label: "Services", href: "/admin/masters/services", submenu: null, module: "service" },
-  { key: "specialization", icon: SlidersHorizontal, label: "Specialization", href: "/admin/masters/specializations", submenu: null, module: "specialization" },
+  { key: "specialization", icon: SlidersHorizontal, label: "Issue Types", href: "/admin/masters/specializations", submenu: null, module: "specialization" },
   { key: "age-groups", icon: UsersRound, label: "Age Groups", href: "/admin/masters/age-groups", submenu: null, module: "ageGroup" },
 ]
 

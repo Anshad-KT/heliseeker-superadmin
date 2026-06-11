@@ -31,12 +31,14 @@ export default function MasterItemViewPage({ params }: { params: Promise<{ slug:
   const itemsQuery = useMasterItems(slug)
   const departmentQuery = useMasterItems("departments")
   const ageGroupQuery = useMasterItems("age-groups")
+  const specializationQuery = useMasterItems("specializations")
 
   const rawItems = itemsQuery.data?.data || []
   const current = rawItems.find((item: any) => item?.id === id) ?? null
 
   const departmentMap = new Map((departmentQuery.data?.data || []).map((item: any) => [item.id, item.name]))
   const ageGroupMap = new Map((ageGroupQuery.data?.data || []).map((item: any) => [item.id, item.name]))
+  const specializationMap = new Map((specializationQuery.data?.data || []).map((item: any) => [item.id, item.name]))
 
   const title =
     slug === "departments"
@@ -71,6 +73,7 @@ export default function MasterItemViewPage({ params }: { params: Promise<{ slug:
   const description = current.description ?? ""
   const departmentName = current.department_id ? departmentMap.get(current.department_id) : undefined
   const ageGroupName = current.age_group_id ? ageGroupMap.get(current.age_group_id) : undefined
+  const specializationNames = (current.specialization_ids || []).map((id: string) => specializationMap.get(id)).filter(Boolean).join(", ")
 
   const wrapClass = "whitespace-pre-wrap break-words [overflow-wrap:anywhere]"
 
@@ -100,6 +103,13 @@ export default function MasterItemViewPage({ params }: { params: Promise<{ slug:
             <div className="space-y-1">
               <p className="text-xs text-muted-foreground">Age Group</p>
               <p className={`font-medium ${wrapClass}`}>{renderValue(ageGroupName)}</p>
+            </div>
+          )}
+
+          {slug === "services" && (
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground">Issue Types</p>
+              <p className={`font-medium ${wrapClass}`}>{renderValue(specializationNames)}</p>
             </div>
           )}
 

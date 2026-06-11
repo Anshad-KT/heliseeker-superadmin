@@ -24,7 +24,7 @@ const MODULES = [
   { key: "seo", label: "SEO" },
   { key: "department", label: "Department" },
   { key: "service", label: "Service" },
-  { key: "specialization", label: "Specialization" },
+  { key: "specialization", label: "Issue Types" },
   { key: "ageGroup", label: "Age Group" },
   { key: "flatPages", label: "Flat Pages" },
   { key: "customers", label: "Website Users" },

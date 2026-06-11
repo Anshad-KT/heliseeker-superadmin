@@ -24,6 +24,9 @@ const masterTableMap = {
     allowed: ["service_name", "description", "department_id", "age_group_id", "status", "auth_user_id"],
     orderBy: { column: "created_at", ascending: false },
     supportsUpdatedAt: true,
+    junctionTable: "service_specializations",
+    junctionForeignKey: "service_id",
+    junctionRefKey: "specialization_id",
   },
   specializations: {
     table: "specializations",
@@ -146,6 +149,33 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ sl
     return NextResponse.json({ message: error.message }, { status: 500 })
   }
 
+  // For services, also fetch the specialization_ids from junction table
+  if (slug === "services" && data) {
+    const serviceIds = data.map((item: any) => item.id)
+    if (serviceIds.length > 0) {
+      const { data: junctionData, error: junctionError } = await supabase
+        .from(config.junctionTable!)
+        .select(config.junctionForeignKey + "," + config.junctionRefKey)
+        .in(config.junctionForeignKey, serviceIds)
+
+      if (!junctionError && junctionData) {
+        const specMap = new Map<string, string[]>()
+        for (const row of junctionData) {
+          const serviceId = row[config.junctionForeignKey]
+          const specId = row[config.junctionRefKey]
+          if (!specMap.has(serviceId)) {
+            specMap.set(serviceId, [])
+          }
+          specMap.get(serviceId)!.push(specId)
+        }
+
+        for (const item of data) {
+          item.specialization_ids = specMap.get(item.id) || []
+        }
+      }
+    }
+  }
+
   return NextResponse.json({ data })
 }
 
@@ -205,6 +235,23 @@ export async function POST(request: NextRequest, context: { params: Promise<{ sl
       return NextResponse.json({ message: getDuplicateMessage(slug) }, { status: 409 })
     }
     return NextResponse.json({ message: error.message }, { status: 500 })
+  }
+
+  // Sync junction table if applicable
+  if (slug === "services" && data && payload.specialization_ids) {
+    const specializationIds = payload.specialization_ids as string[]
+    if (Array.isArray(specializationIds) && specializationIds.length > 0) {
+      const junctionRows = specializationIds.map((specId: string) => ({
+        [config.junctionForeignKey]: data.id,
+        [config.junctionRefKey]: specId,
+      }))
+      const { error: junctionError } = await supabase
+        .from(config.junctionTable!)
+        .insert(junctionRows)
+      if (junctionError) {
+        console.error("Failed to sync junction table:", junctionError)
+      }
+    }
   }
 
   return NextResponse.json({ data }, { status: 201 })
@@ -286,6 +333,35 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ s
 
   if (!data) {
     return NextResponse.json({ message: "Item not found" }, { status: 404 })
+  }
+
+  // Sync junction table for services if specialization_ids provided
+  if (slug === "services" && payload.specialization_ids !== undefined) {
+    const specializationIds = payload.specialization_ids as string[]
+    if (Array.isArray(specializationIds)) {
+      // Delete existing junctions
+      const { error: deleteJunctionError } = await supabase
+        .from(config.junctionTable!)
+        .delete()
+        .eq(config.junctionForeignKey, id)
+      if (deleteJunctionError) {
+        console.error("Failed to delete old junction rows:", deleteJunctionError)
+      }
+
+      // Insert new junctions
+      if (specializationIds.length > 0) {
+        const junctionRows = specializationIds.map((specId: string) => ({
+          [config.junctionForeignKey]: id,
+          [config.junctionRefKey]: specId,
+        }))
+        const { error: insertJunctionError } = await supabase
+          .from(config.junctionTable!)
+          .insert(junctionRows)
+        if (insertJunctionError) {
+          console.error("Failed to insert new junction rows:", insertJunctionError)
+        }
+      }
+    }
   }
 
   return NextResponse.json({ data })

@@ -12,6 +12,7 @@ export interface MasterTableItem {
   description?: string
   departmentName?: string
   ageGroupName?: string
+  specializationNames?: string
   fromAge?: number
   toAge?: number
   unit?: string
@@ -25,6 +26,7 @@ interface MasterTableProps {
   getViewHref?: (id: string) => string
   showDepartment?: boolean
   showAgeGroup?: boolean
+  showSpecializations?: boolean
   showAgeRange?: boolean
   showStatus?: boolean
   showDescription?: boolean
@@ -40,6 +42,7 @@ export function MasterTable({
   getViewHref,
   showDepartment,
   showAgeGroup,
+  showSpecializations,
   showAgeRange,
   showStatus,
   showDescription = true,
@@ -80,6 +83,7 @@ export function MasterTable({
             )}
             {showDepartment && <TableHead>Department</TableHead>}
             {showAgeGroup && <TableHead>Age Group</TableHead>}
+            {showSpecializations && <TableHead>Issue Types</TableHead>}
             {showDescription && <TableHead>Description</TableHead>}
             {showStatus && <TableHead>Status</TableHead>}
             <TableHead className="text-right">Actions</TableHead>
@@ -99,6 +103,7 @@ export function MasterTable({
               )}
               {showDepartment && <TableCell>{renderTruncated(item.departmentName || "-", "max-w-[240px]")}</TableCell>}
               {showAgeGroup && <TableCell>{renderTruncated(item.ageGroupName || "-", "max-w-[240px]")}</TableCell>}
+              {showSpecializations && <TableCell>{renderTruncated(item.specializationNames || "-", "max-w-[240px]")}</TableCell>}
               {showDescription && <TableCell>{renderTruncated(item.description || "-", "max-w-[360px]")}</TableCell>}
               {showStatus && (
                 <TableCell>{item.status === undefined ? "-" : item.status ? "Active" : "Inactive"}</TableCell>

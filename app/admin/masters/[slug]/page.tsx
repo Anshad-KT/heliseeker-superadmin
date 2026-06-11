@@ -21,6 +21,7 @@ import { Check, ChevronsUpDown, Loader2 } from "lucide-react"
 
 import { useCreateMasterItem, useDeleteMasterItem, useMasterItems, useUpdateMasterItem } from "../_hooks/use-masters"
 import { MasterTable } from "../_components/master-table"
+import { MultiSelect } from "@/components/ui/multi-select"
 import { useToast } from "@/hooks/use-toast"
 import { useRequirePermission } from "@/app/admin/access/_hooks/use-access"
 
@@ -36,7 +37,7 @@ const masterConfig = {
     nameLabel: "Service Name",
   },
   specializations: {
-    title: "Specializations",
+    title: "Issue Types",
     description: "Create and manage specializations for center listings.",
     nameLabel: "Specialization Name",
   },
@@ -147,6 +148,8 @@ export default function MasterPage({ params }: { params: Promise<{ slug: string 
 
   const departmentQuery = useMasterItems("departments")
   const ageGroupQuery = useMasterItems("age-groups")
+  const specializationQuery = useMasterItems("specializations")
+  const [selectedSpecializations, setSelectedSpecializations] = useState<string[]>([])
 
   const form = useForm<MasterFormValues>({
     resolver: zodResolver(masterItemSchema),
@@ -185,6 +188,7 @@ export default function MasterPage({ params }: { params: Promise<{ slug: string 
   useEffect(() => {
     if (!editingId) {
       form.reset({ name: "", description: "", departmentId: "", ageGroupId: "none", fromAge: undefined, toAge: undefined, unit: "year", status: true })
+      setSelectedSpecializations([])
       return
     }
 
@@ -201,6 +205,9 @@ export default function MasterPage({ params }: { params: Promise<{ slug: string 
       unit: current.unit === "month" || current.unit === "year" ? current.unit : "year",
       status: typeof current.status === "boolean" ? current.status : current.status === null || current.status === undefined ? true : Boolean(current.status),
     })
+    if (slug === "services" && current.specialization_ids) {
+      setSelectedSpecializations(current.specialization_ids)
+    }
   }, [editingId, form, data?.data])
 
   useEffect(() => {
@@ -217,21 +224,24 @@ export default function MasterPage({ params }: { params: Promise<{ slug: string 
     if (!config) return []
     const departments = departmentQuery.data?.data || []
     const ageGroups = ageGroupQuery.data?.data || []
+    const specializations = specializationQuery.data?.data || []
     const departmentMap = new Map(departments.map((item) => [item.id, item.name]))
     const ageGroupMap = new Map(ageGroups.map((item) => [item.id, item.name]))
+    const specializationMap = new Map(specializations.map((item: any) => [item.id, item.name]))
 
-    return (data?.data || []).map((item) => ({
+    return (data?.data || []).map((item: any) => ({
       id: item.id,
       name: item.service_name ?? item.name ?? "",
       description: item.description ?? "",
       departmentName: item.department_id ? departmentMap.get(item.department_id) : undefined,
       ageGroupName: item.age_group_id ? ageGroupMap.get(item.age_group_id) : undefined,
+      specializationNames: (item.specialization_ids || []).map((id: string) => specializationMap.get(id)).filter(Boolean).join(", "),
       fromAge: item.from_age ?? undefined,
       toAge: item.to_age ?? undefined,
       unit: item.unit ?? undefined,
       status: item.status ?? undefined,
     }))
-  }, [data?.data, departmentQuery.data?.data, ageGroupQuery.data?.data])
+  }, [data?.data, departmentQuery.data?.data, ageGroupQuery.data?.data, specializationQuery.data?.data])
 
   const filteredItems = useMemo(() => {
     if (!tableQuery.trim()) return items
@@ -306,6 +316,7 @@ export default function MasterPage({ params }: { params: Promise<{ slug: string 
                         description: values.description || undefined,
                         department_id: values.departmentId || undefined,
                         age_group_id: values.ageGroupId === "none" ? undefined : values.ageGroupId,
+                        specialization_ids: selectedSpecializations,
                       }
                     : slug === "age-groups"
                     ? {
@@ -545,6 +556,26 @@ export default function MasterPage({ params }: { params: Promise<{ slug: string 
                 />
               )}
 
+              {slug === "services" && (
+                <FormItem>
+                  <FormLabel>Issue Types</FormLabel>
+                  <FormControl>
+                    <MultiSelect
+                      value={selectedSpecializations}
+                      onChange={setSelectedSpecializations}
+                      options={(specializationQuery.data?.data || []).map((item: any) => ({
+                        value: item.id,
+                        label: item.name,
+                      }))}
+                      placeholder="Select issue types..."
+                      searchPlaceholder="Search issue types..."
+                      emptyMessage="No specializations found."
+                      disabled={specializationQuery.isLoading}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+
               <div className="flex items-center gap-2 md:col-span-2">
                 <Button type="submit" disabled={isSaving}>
                   {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -612,6 +643,7 @@ export default function MasterPage({ params }: { params: Promise<{ slug: string 
               canDelete={access.can(moduleKey, "delete")}
               showDepartment={slug === "services"}
               showAgeGroup={slug === "services"}
+              showSpecializations={slug === "services"}
               showAgeRange={slug === "age-groups"}
               showStatus={slug === "age-groups"}
               showDescription={slug !== "specializations"}
