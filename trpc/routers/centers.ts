@@ -579,15 +579,16 @@ export const centersRouter = createTRPCRouter({
       throw new TRPCError({ code: "NOT_FOUND", message: "Center not found" })
     }
 
+    const nowIso = new Date().toISOString()
     const updateValues: Record<string, unknown> = {
       approvalStatus: input.status,
-      updatedAt: new Date(),
+      updatedAt: nowIso,
     }
 
     const terminalStatus = isTerminalCenterStatus(input.status) ? input.status : null
 
     if (terminalStatus) {
-      updateValues.decidedAt = new Date()
+      updateValues.decidedAt = nowIso
     } else {
       updateValues.decidedAt = null
     }
@@ -630,7 +631,7 @@ export const centersRouter = createTRPCRouter({
   update: publicProcedure.input(updateCenterSchema).mutation(async ({ input }) => {
     try {
       const updateValues: Partial<typeof centerProfiles.$inferInsert> = {
-        updatedAt: new Date(),
+        updatedAt: new Date().toISOString(),
       }
 
       if (input.centerName !== undefined) updateValues.centerName = input.centerName
@@ -866,7 +867,10 @@ export const centersRouter = createTRPCRouter({
       `
 
       if (centerName && centerName !== center[0].centerName) {
-        await db.update(centerProfiles).set({ centerName }).where(eq(centerProfiles.id, input.id))
+        await db
+          .update(centerProfiles)
+          .set({ centerName, updatedAt: new Date().toISOString() })
+          .where(eq(centerProfiles.id, input.id))
       }
 
       return { success: true }

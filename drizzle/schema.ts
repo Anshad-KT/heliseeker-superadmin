@@ -19,9 +19,9 @@ export const centerProfiles = pgTable("center_profiles", {
   contactPhone: text("contact_phone"),
   approvalStatus: centerApprovalStatus("approval_status").notNull().default("submitted"),
   approvalNote: text("approval_note"),
-  decidedAt: timestamp("decided_at", { withTimezone: true }),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true })
+  decidedAt: timestamp("decided_at", { withTimezone: true, mode: "string" }),
+  createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" })
     .notNull()
     .defaultNow()
     .$onUpdate(() => sql`now()`),
@@ -36,7 +36,7 @@ export const leads = pgTable("leads", {
   message: text("message"),
   source: text("source"),
   pageUrl: text("page_url"),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
 })
 
 export const admins = pgTable("admins", {
@@ -48,9 +48,9 @@ export const admins = pgTable("admins", {
   role: varchar("role", { length: 50 }).notNull().default("super_admin"),
   img: text("img"),
   isActive: boolean("is_active").notNull().default(true),
-  lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true })
+  lastLoginAt: timestamp("last_login_at", { withTimezone: true, mode: "string" }),
+  createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" })
     .notNull()
     .defaultNow()
     .$onUpdate(() => sql`now()`),
@@ -59,8 +59,8 @@ export const admins = pgTable("admins", {
 export const roles = pgTable("roles", {
   roleId: uuid("role_id").defaultRandom().primaryKey(),
   name: varchar("name", { length: 100 }).notNull().unique(),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true })
+  createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" })
     .notNull()
     .defaultNow()
     .$onUpdate(() => sql`now()`),
@@ -68,13 +68,13 @@ export const roles = pgTable("roles", {
 
 export const permissions = pgTable("permissions", {
   permissionId: uuid("permission_id").defaultRandom().primaryKey(),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
   permissionName: text("permission_name").notNull().unique(),
 })
 
 export const modules = pgTable("modules", {
   moduleId: uuid("module_id").defaultRandom().primaryKey(),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
   moduleName: text("module_name").notNull().unique(),
   moduleParent: text("module_parent"),
   link: text("link"),
@@ -90,8 +90,8 @@ export const flatPages = pgTable(
     slug: text("slug").notNull(),
     description: text("description").notNull().default(""),
     enabled: boolean("enabled").notNull().default(true),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" })
       .notNull()
       .defaultNow()
       .$onUpdate(() => sql`now()`),
@@ -113,8 +113,8 @@ export const rolePermissionsLegacy = pgTable(
     canView: boolean("can_view").notNull().default(false),
     canCreate: boolean("can_create").notNull().default(false),
     canEdit: boolean("can_edit").notNull().default(false),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" })
       .notNull()
       .defaultNow()
       .$onUpdate(() => sql`now()`),
@@ -128,7 +128,7 @@ export const rolePermissions = pgTable(
   "role_permissions",
   {
     rolePermissionId: uuid("role_permission_id").defaultRandom().primaryKey(),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
     roleId: uuid("role_id")
       .notNull()
       .references(() => roles.roleId, { onDelete: "cascade" }),

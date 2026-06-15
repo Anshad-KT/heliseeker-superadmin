@@ -8,7 +8,7 @@ interface CenterDecisionNotificationPayload {
   contactEmail: string | null
   status: "active" | "deactive" | "rejected" | "blacklisted"
   approvalNote: string | null
-  decidedAt: Date | null
+  decidedAt: string | null
 }
 
 interface CenterDecisionEmailPayload {
